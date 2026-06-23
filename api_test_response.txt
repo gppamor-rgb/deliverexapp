@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="refresh" content="0;url='http://deli-lzzm.onrender.com'" />
+
+        <title>Redirecting to http://deli-lzzm.onrender.com</title>
+    </head>
+    <body>
+        Redirecting to <a href="http://deli-lzzm.onrender.com">http://deli-lzzm.onrender.com</a>.
+    </body>
+</html>
