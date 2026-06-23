@@ -1,17 +1,52 @@
-# deliverex
+# Deliverex
 
-A new Flutter project.
+A delivery management platform with fleet dispatch, real-time tracking, OCR documentation, and a built-in assistant chatbot.
+
+- **Web App:** [https://deliverexapp.com](https://deliverexapp.com)
+- **Mobile App:** Built with Flutter (this repo)
+- **Download APK:** [Deliverexapp.apk](Deliverexapp.apk)
+
+
+## Features
+
+- **Customer Portal** — sign up, manage deliveries, track orders
+- **Driver App** — job assignments, status updates, proof of delivery, offline mode with background sync
+- **Real-time Tracking** — track deliveries with ETA and activity logs
+- **OCR Documentation** — scan and process delivery documents
+- **Deliverex Assistant** — AI-powered chatbot for support and tracking
+
+## Tech Stack
+
+- **Frontend:** Flutter (Dart)
+- **Backend:** Laravel (PHP)
+- **HTTP Client:** Dio
+- **State Management:** ChangeNotifier + ListenableBuilder
+- **Offline Storage:** SQLite
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+```bash
+git clone https://github.com/gppamor-rgb/deliverexapp.git
+cd deliverex
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Project Structure
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```
+lib/
+├── app/              # App entry point
+├── core/             # Colors, sizes, theme, helpers
+├── database/         # SQLite helpers
+├── models/           # Data models
+├── providers/        # State management
+├── repositories/     # Data access layer
+├── screens/          # UI screens
+├── services/         # API clients
+└── widgets/          # Reusable widgets
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## License
+
+All rights reserved.
