@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../database/action_store.dart';
-import '../database/assignment_store.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 
@@ -16,7 +15,6 @@ class SyncService {
   static final SyncService instance = SyncService._();
 
   final _actionStore = ActionStore();
-  final _assignmentStore = AssignmentStore();
   final _apiClient = ApiClient();
   final _storage = const FlutterSecureStorage();
 
@@ -52,7 +50,6 @@ class SyncService {
             token: token,
           );
           await _actionStore.markSynced(action.id!);
-          await _updateCachedAssignment(action);
           if (kDebugMode) {
             debugPrint('Deliverex synced action ${action.id}: ${action.actionType}');
           }
@@ -62,7 +59,7 @@ class SyncService {
             debugPrint('Deliverex discarded action ${action.id} (server has newer data)');
           }
         } catch (e) {
-          final error = e.toString();
+          final error = extractServerMessage(e);
           if (kDebugMode) {
             debugPrint('Deliverex sync failed action ${action.id}: $error');
           }
@@ -75,8 +72,9 @@ class SyncService {
         _syncController.add(const SyncCompleted());
         await _actionStore.removeSyncedOlderThan(const Duration(days: 7));
       } else {
+        final lastError = await _actionStore.getLatestError();
         _syncController.add(
-          SyncError('$remaining update${remaining == 1 ? '' : 's'} failed to sync'),
+          SyncError(lastError ?? '$remaining update${remaining == 1 ? '' : 's'} failed to sync'),
         );
       }
     } finally {
@@ -204,12 +202,18 @@ class SyncService {
     }
   }
 
-  Future<void> _updateCachedAssignment(PendingAction action) async {
-    if (action.actionType != 'status_update') return;
-    final status = action.payload['status'] as String?;
-    final assignmentId = action.assignmentId;
-    if (status == null || assignmentId == null) return;
-    await _assignmentStore.updateAssignmentStatus(assignmentId, status);
+  static String extractServerMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final message = data['message']?.toString();
+        if (message != null && message.isNotEmpty) return message;
+        final error2 = data['error']?.toString();
+        if (error2 != null && error2.isNotEmpty) return error2;
+      }
+      if (data is String && data.isNotEmpty) return data;
+    }
+    return error.toString();
   }
 
   void dispose() {

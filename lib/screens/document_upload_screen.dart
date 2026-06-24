@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -64,10 +65,17 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   }
 
   Future<List<DriverAssignment>> _loadAssignments() async {
-    final assignments = await _assignmentRepo.fetchAssignments(page: 1);
-    return assignments
-        .where((assignment) => assignment.isActive || assignment.isPending)
-        .toList();
+    try {
+      final assignments = await _assignmentRepo.fetchAssignments(page: 1);
+      return assignments
+          .where((assignment) => assignment.isActive || assignment.isPending)
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Deliverex document_upload: assignments fetch failed: $e');
+      }
+      return [];
+    }
   }
 
   Future<void> _pickFile({bool imageOnly = false}) async {

@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../database/action_store.dart';
+import '../database/assignment_store.dart';
 import '../database/database_helper.dart';
 import '../models/driver_user.dart';
 import 'api_client.dart';
@@ -72,6 +74,7 @@ class AuthService {
 
       await _storage.write(key: tokenKey, value: token);
       await _dbHelper.setSetting(tokenKey, token);
+      await _dbHelper.setSetting('current_driver_id', user.id);
       return AuthResult(token: token, user: user);
     } on DioException catch (error) {
       if (kDebugMode) {
@@ -122,6 +125,10 @@ class AuthService {
     } finally {
       await _storage.delete(key: tokenKey);
       await _dbHelper.deleteSetting(tokenKey);
+      await _dbHelper.deleteSetting('current_driver_id');
+      await _dbHelper.deleteSetting('locally_read_notification_ids');
+      await AssignmentStore().clearCache();
+      await ActionStore().clearAll();
     }
   }
 

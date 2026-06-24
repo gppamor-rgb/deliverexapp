@@ -12,6 +12,7 @@ class AssignmentStore {
     final db = await _db.database;
     final batch = db.batch();
     final now = DateTime.now().toIso8601String();
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
 
     for (final assignment in assignments) {
       batch.insert(
@@ -20,6 +21,7 @@ class AssignmentStore {
           'id': assignment.id,
           'data': jsonEncode(assignment.raw),
           'cached_at': now,
+          'driver_id': driverId,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -29,12 +31,14 @@ class AssignmentStore {
 
   Future<void> cacheAssignment(DriverAssignment assignment) async {
     final db = await _db.database;
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
     await db.insert(
       'cached_assignments',
       {
         'id': assignment.id,
         'data': jsonEncode(assignment.raw),
         'cached_at': DateTime.now().toIso8601String(),
+        'driver_id': driverId,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -42,10 +46,11 @@ class AssignmentStore {
 
   Future<DriverAssignment?> getCachedAssignment(String id) async {
     final db = await _db.database;
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
     final rows = await db.query(
       'cached_assignments',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? AND driver_id IN (?, ?)',
+      whereArgs: [id, driverId, ''],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -55,21 +60,17 @@ class AssignmentStore {
 
   Future<List<DriverAssignment>> getCachedAssignments() async {
     final db = await _db.database;
-    final rows = await db.query('cached_assignments', orderBy: 'cached_at DESC');
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
+    final rows = await db.query(
+      'cached_assignments',
+      where: 'driver_id IN (?, ?)',
+      whereArgs: [driverId, ''],
+      orderBy: 'cached_at DESC',
+    );
     return rows.map((row) {
       final data = jsonDecode(row['data'] as String) as Map<String, dynamic>;
       return DriverAssignment.fromJson(data);
     }).toList();
-  }
-
-  Future<void> updateAssignmentStatus(String id, String newStatus) async {
-    final existing = await getCachedAssignment(id);
-    if (existing == null) return;
-
-    final updatedRaw = Map<String, dynamic>.from(existing.raw);
-    updatedRaw['status'] = newStatus;
-    final updated = DriverAssignment(updatedRaw);
-    await cacheAssignment(updated);
   }
 
   Future<void> clearCache() async {

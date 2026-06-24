@@ -216,7 +216,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       MaterialPageRoute(
         builder: (_) => JobDetailScreen(assignmentId: assignment.id),
       ),
-    );
+    ).then((_) => _refresh());
   }
 
   DriverAssignment? _firstActive(List<DriverAssignment> assignments) {

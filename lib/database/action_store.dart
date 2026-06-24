@@ -81,6 +81,7 @@ class ActionStore {
   }) async {
     final db = await _db.database;
     final now = DateTime.now().toIso8601String();
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
 
     return db.insert('offline_actions', {
       'action_type': actionType,
@@ -93,25 +94,39 @@ class ActionStore {
       'status': 'pending',
       'retry_count': 0,
       'created_at': now,
+      'driver_id': driverId,
     });
   }
 
   Future<List<PendingAction>> getPendingActions() async {
     final db = await _db.database;
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
     final rows = await db.query(
       'offline_actions',
-      where: 'status = ?',
-      whereArgs: ['pending'],
+      where: 'status IN (?, ?) AND driver_id IN (?, ?)',
+      whereArgs: ['pending', 'failed', driverId, ''],
       orderBy: 'created_at ASC',
     );
-    return rows.map(PendingAction.fromMap).toList();
+    final actions = rows.map(PendingAction.fromMap).toList();
+    for (final action in actions) {
+      if (action.status == 'failed') {
+        await db.update(
+          'offline_actions',
+          {'status': 'pending', 'retry_count': 0, 'last_error': null},
+          where: 'id = ?',
+          whereArgs: [action.id],
+        );
+      }
+    }
+    return actions;
   }
 
   Future<int> getPendingCount() async {
     final db = await _db.database;
+    final driverId = await _db.getSetting('current_driver_id') ?? '';
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM offline_actions WHERE status = ?',
-      ['pending'],
+      'SELECT COUNT(*) as count FROM offline_actions WHERE status IN (?, ?) AND driver_id IN (?, ?)',
+      ['pending', 'failed', driverId, ''],
     );
     return Sqflite.firstIntValue(result) ?? 0;
   }
@@ -141,29 +156,16 @@ class ActionStore {
     final current = PendingAction.fromMap(action.first);
     final newRetryCount = current.retryCount + 1;
 
-    if (newRetryCount >= 3) {
-      await db.update(
-        'offline_actions',
-        {
-          'status': 'failed',
-          'retry_count': newRetryCount,
-          'last_error': error,
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-    } else {
-      await db.update(
-        'offline_actions',
-        {
-          'status': 'pending',
-          'retry_count': newRetryCount,
-          'last_error': error,
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-    }
+    await db.update(
+      'offline_actions',
+      {
+        'status': 'pending',
+        'retry_count': newRetryCount,
+        'last_error': error,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> removeSyncedOlderThan(Duration age) async {
@@ -174,6 +176,18 @@ class ActionStore {
       where: 'status = ? AND synced_at < ?',
       whereArgs: ['synced', cutoff],
     );
+  }
+
+  Future<String?> getLatestError() async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'offline_actions',
+      where: 'last_error IS NOT NULL',
+      orderBy: 'created_at DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return PendingAction.fromMap(rows.first).lastError;
   }
 
   Future<void> clearAll() async {

@@ -48,6 +48,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   var _isSyncing = false;
   var _pendingCount = 0;
   var _hasError = false;
+  var _syncError = '';
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<SyncStatus>? _syncSub;
 
@@ -91,6 +92,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       setState(() {
         _isSyncing = false;
         _hasError = false;
+        _syncError = '';
       });
       if (status is SyncCompleted) {
         _refresh();
@@ -100,13 +102,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       setState(() {
         _isSyncing = false;
         _hasError = true;
+        _syncError = status.message;
       });
     }
   }
 
   Future<void> _loadPendingCount() async {
-    final count = await _actionStore.getPendingCount();
-    if (mounted) setState(() => _pendingCount = count);
+    try {
+      final count = await _actionStore.getPendingCount();
+      if (mounted) setState(() => _pendingCount = count);
+    } catch (_) {}
   }
 
   Future<DriverAssignment> _load() async {
@@ -120,11 +125,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _refresh() async {
-    final refreshedFuture = _load();
-    setState(() {
-      _future = refreshedFuture;
-    });
-    await refreshedFuture;
+    try {
+      final assignment = await _load();
+      if (mounted) {
+        setState(() => _future = Future.value(assignment));
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadUnreadCount() async {
@@ -291,7 +297,37 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       return;
     }
 
+    final confirmed = await _showStatusConfirmDialog(
+      currentLabel: assignment.statusLabel,
+      nextLabel: _nextStatusLabel(assignment.status),
+    );
+    if (confirmed != true) return;
+
     await _updateStatus(assignment, nextStatus);
+  }
+
+  Future<bool> _showStatusConfirmDialog({
+    required String currentLabel,
+    required String nextLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Status'),
+        content: Text('Change status from $currentLabel to $nextLabel?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    ).then((v) => v ?? false);
   }
 
   Future<void> _showCompleteDeliverySheet(DriverAssignment assignment) async {
@@ -542,6 +578,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             isSyncing: _isSyncing,
             pendingCount: _pendingCount,
             hasError: _hasError,
+            errorMessage: _syncError.isNotEmpty ? _syncError : null,
             onSyncTap: () => _syncService.processQueue(),
           ),
           Expanded(
@@ -1312,8 +1349,8 @@ class _StatusTrackerCard extends StatelessWidget {
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
     ('in_progress', 'En Route', Icons.local_shipping_rounded),
-    ('arrived', 'Arrived', Icons.circle_outlined),
-    ('completed', 'Completed', Icons.circle_outlined),
+    ('arrived', 'Arrived', Icons.location_on_rounded),
+    ('completed', 'Completed', Icons.check_circle_rounded),
   ];
 
   @override
@@ -1666,11 +1703,18 @@ class _StatusHistoryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final log in logs)
-            _HistoryRow(
+          ...() {
+            final sortedLogs = List<Map<String, dynamic>>.from(logs);
+            sortedLogs.sort((a, b) {
+              final aDate = (a['created_at'] ?? a['timestamp'] ?? '') as String;
+              final bDate = (b['created_at'] ?? b['timestamp'] ?? '') as String;
+              return bDate.compareTo(aDate);
+            });
+            return sortedLogs.map((log) => _HistoryRow(
               rawDate: log['created_at'] ?? log['timestamp'],
               status: '${log['status'] ?? ''}',
-            ),
+            ));
+          }(),
         ],
       ),
     );
@@ -1820,7 +1864,7 @@ class _StickyJobActions extends StatelessWidget {
                 Expanded(
                   child: _ActionButton(
                     icon: Icons.upload_file_outlined,
-                    label: 'Upload Proof',
+                    label: 'Upload',
                     onTap: onUpload,
                   ),
                 ),

@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -40,7 +40,8 @@ class DatabaseHelper {
         retry_count INTEGER NOT NULL DEFAULT 0,
         last_error TEXT,
         synced_at TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        driver_id TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -48,7 +49,8 @@ class DatabaseHelper {
       CREATE TABLE cached_assignments (
         id TEXT PRIMARY KEY,
         data TEXT NOT NULL,
-        cached_at TEXT NOT NULL
+        cached_at TEXT NOT NULL,
+        driver_id TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -68,6 +70,20 @@ class DatabaseHelper {
           value TEXT NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 3) {
+      final cachedCols = await db.rawQuery('PRAGMA table_info(cached_assignments)');
+      if (!cachedCols.any((c) => c['name'] == 'driver_id')) {
+        await db.execute(
+          'ALTER TABLE cached_assignments ADD COLUMN driver_id TEXT NOT NULL DEFAULT \'\'',
+        );
+      }
+      final actionsCols = await db.rawQuery('PRAGMA table_info(offline_actions)');
+      if (!actionsCols.any((c) => c['name'] == 'driver_id')) {
+        await db.execute(
+          'ALTER TABLE offline_actions ADD COLUMN driver_id TEXT NOT NULL DEFAULT \'\'',
+        );
+      }
     }
   }
 

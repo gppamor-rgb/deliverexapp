@@ -9,6 +9,7 @@ class ConnectivityBanner extends StatelessWidget {
     required this.pendingCount,
     this.isSyncing = false,
     this.hasError = false,
+    this.errorMessage,
     this.onSyncTap,
   });
 
@@ -16,6 +17,7 @@ class ConnectivityBanner extends StatelessWidget {
   final int pendingCount;
   final bool isSyncing;
   final bool hasError;
+  final String? errorMessage;
   final VoidCallback? onSyncTap;
 
   @override
@@ -46,6 +48,7 @@ class ConnectivityBanner extends StatelessWidget {
               _statusIcon,
               const SizedBox(width: 8),
               Expanded(child: _label),
+              if (_showPendingBadge) _PendingBadge(count: pendingCount),
               if (_showSyncButton)
                 GestureDetector(
                   onTap: onSyncTap,
@@ -70,6 +73,19 @@ class ConnectivityBanner extends StatelessWidget {
                 ),
             ],
           ),
+          if (hasError && errorMessage != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              errorMessage!,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           if (isSyncing) ...[
             const SizedBox(height: 6),
             ClipRRect(
@@ -91,7 +107,7 @@ class ConnectivityBanner extends StatelessWidget {
         ? Icons.cloud_off_rounded
         : hasError
             ? Icons.warning_amber_rounded
-            : isSyncing || pendingCount > 0
+            : isSyncing
                 ? Icons.sync_rounded
                 : Icons.cloud_done_rounded;
 
@@ -102,15 +118,11 @@ class ConnectivityBanner extends StatelessWidget {
     String text;
 
     if (!isOnline) {
-      text = pendingCount > 0
-          ? 'Offline · $pendingCount update${pendingCount == 1 ? '' : 's'} pending'
-          : 'Offline · No internet connection';
+      text = 'Offline';
     } else if (isSyncing) {
       text = 'Syncing updates...';
     } else if (hasError) {
-      text = '$pendingCount update${pendingCount == 1 ? '' : 's'} failed — tap to retry';
-    } else if (pendingCount > 0) {
-      text = '$pendingCount update${pendingCount == 1 ? '' : 's'} pending sync';
+      text = 'Sync failed — tap to retry';
     } else {
       text = 'Connected';
     }
@@ -133,8 +145,46 @@ class ConnectivityBanner extends StatelessWidget {
     return AppColors.success.withValues(alpha: 0.85);
   }
 
+  bool get _showPendingBadge {
+    if (isSyncing) return false;
+    return pendingCount > 0;
+  }
+
   bool get _showSyncButton {
     if (isSyncing) return false;
+    if (_showPendingBadge && !hasError) return false;
     return (pendingCount > 0 || hasError) && isOnline;
+  }
+}
+
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.sync_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            '$count pending',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

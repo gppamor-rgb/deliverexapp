@@ -17,6 +17,8 @@ import '../widgets/driver/driver_status_chip.dart';
 import 'job_detail_screen.dart';
 import 'start_screen.dart';
 
+const _emptyAssignments = <DriverAssignment>[];
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.user});
 
@@ -40,7 +42,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<_ProfileData> _load() async {
-    final assignments = await _assignmentRepo.fetchAssignments(page: 1);
+    List<DriverAssignment> assignments;
+    try {
+      assignments = await _assignmentRepo.fetchAssignments(page: 1);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Deliverex profile: assignments fetch failed: $e');
+      }
+      assignments = _emptyAssignments;
+    }
 
     DriverProfile profile;
     try {

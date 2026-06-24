@@ -318,8 +318,8 @@ class _StatusSummaryCard extends StatelessWidget {
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
     ('in_progress', 'En Route', Icons.local_shipping_rounded),
-    ('arrived', 'Arrived', Icons.circle_outlined),
-    ('completed', 'Completed', Icons.circle_outlined),
+    ('arrived', 'Arrived', Icons.location_on_rounded),
+    ('completed', 'Completed', Icons.check_circle_rounded),
   ];
 
   int _statusIndex(String status) {

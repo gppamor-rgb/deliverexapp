@@ -57,7 +57,7 @@ void backgroundSyncCallback() {
             );
           }
         } catch (e) {
-          final error = e.toString();
+          final error = SyncService.extractServerMessage(e);
           if (kDebugMode) {
             debugPrint(
               'Deliverex background sync failed action ${action.id}: $error',

@@ -39,6 +39,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
   var _isSyncing = false;
   var _pendingCount = 0;
   var _hasError = false;
+  var _syncError = '';
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<SyncStatus>? _syncSub;
 
@@ -124,6 +125,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
       setState(() {
         _isSyncing = false;
         _hasError = false;
+        _syncError = '';
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -143,11 +145,13 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
       setState(() {
         _isSyncing = false;
         _hasError = true;
+        _syncError = status.message;
       });
     } else if (status is SyncIdle) {
       setState(() {
         _isSyncing = false;
         _hasError = false;
+        _syncError = '';
       });
     }
   }
@@ -184,6 +188,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
             isSyncing: _isSyncing,
             pendingCount: _pendingCount,
             hasError: _hasError,
+            errorMessage: _syncError.isNotEmpty ? _syncError : null,
             onSyncTap: () => _syncService.processQueue(),
           ),
           DriverAppHeader(
