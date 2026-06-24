@@ -8,12 +8,14 @@ class ConnectivityBanner extends StatelessWidget {
     required this.isOnline,
     required this.pendingCount,
     this.isSyncing = false,
+    this.hasError = false,
     this.onSyncTap,
   });
 
   final bool isOnline;
   final int pendingCount;
   final bool isSyncing;
+  final bool hasError;
   final VoidCallback? onSyncTap;
 
   @override
@@ -87,9 +89,11 @@ class ConnectivityBanner extends StatelessWidget {
   Widget get _statusIcon {
     final iconData = !isOnline
         ? Icons.cloud_off_rounded
-        : isSyncing || pendingCount > 0
-            ? Icons.sync_rounded
-            : Icons.cloud_done_rounded;
+        : hasError
+            ? Icons.warning_amber_rounded
+            : isSyncing || pendingCount > 0
+                ? Icons.sync_rounded
+                : Icons.cloud_done_rounded;
 
     return Icon(iconData, color: Colors.white, size: 20);
   }
@@ -103,6 +107,8 @@ class ConnectivityBanner extends StatelessWidget {
           : 'Offline · No internet connection';
     } else if (isSyncing) {
       text = 'Syncing updates...';
+    } else if (hasError) {
+      text = '$pendingCount update${pendingCount == 1 ? '' : 's'} failed — tap to retry';
     } else if (pendingCount > 0) {
       text = '$pendingCount update${pendingCount == 1 ? '' : 's'} pending sync';
     } else {
@@ -121,6 +127,7 @@ class ConnectivityBanner extends StatelessWidget {
 
   Color get _backgroundColor {
     if (!isOnline) return AppColors.warning;
+    if (hasError) return AppColors.danger;
     if (isSyncing) return AppColors.primary;
     if (pendingCount > 0) return AppColors.primary.withValues(alpha: 0.85);
     return AppColors.success.withValues(alpha: 0.85);
@@ -128,6 +135,6 @@ class ConnectivityBanner extends StatelessWidget {
 
   bool get _showSyncButton {
     if (isSyncing) return false;
-    return pendingCount > 0 && isOnline;
+    return (pendingCount > 0 || hasError) && isOnline;
   }
 }

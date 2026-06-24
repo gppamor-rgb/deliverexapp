@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +15,8 @@ import '../repositories/assignment_repository.dart';
 import '../repositories/status_repository.dart';
 import '../services/connectivity_service.dart';
 import '../services/driver_service.dart';
+import '../services/sync_service.dart';
+import '../widgets/driver/connectivity_banner.dart';
 import '../widgets/driver/driver_card.dart';
 import '../widgets/driver/driver_empty_state.dart';
 import '../widgets/driver/driver_primary_button.dart';
@@ -35,16 +39,73 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   final _assignmentRepository = AssignmentRepository();
   final _actionStore = ActionStore();
   final _connectivity = ConnectivityService.instance;
+  final _syncService = SyncService.instance;
   late Future<DriverAssignment> _future;
   var _submitting = false;
   String? _message;
   var _unreadCount = 0;
+  var _isOnline = true;
+  var _isSyncing = false;
+  var _pendingCount = 0;
+  var _hasError = false;
+  StreamSubscription<bool>? _connectivitySub;
+  StreamSubscription<SyncStatus>? _syncSub;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
     _loadUnreadCount();
+    _isOnline = _connectivity.isOnline;
+    _connectivitySub = _connectivity.connectivityStream.listen(_onConnectivityChanged);
+    _syncSub = _syncService.syncStream.listen(_onSyncStatusChanged);
+    _loadPendingCount();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    _syncSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _onConnectivityChanged(bool online) async {
+    if (!mounted) return;
+    setState(() => _isOnline = online);
+    await _loadPendingCount();
+    if (online && _pendingCount > 0) {
+      _syncService.processQueue();
+    }
+  }
+
+  void _onSyncStatusChanged(SyncStatus status) {
+    if (!mounted) return;
+    _loadPendingCount();
+    if (status is SyncSyncing) {
+      setState(() {
+        _isSyncing = true;
+        _pendingCount = status.pendingCount;
+        _hasError = status.hasError;
+      });
+    } else if (status is SyncCompleted || status is SyncIdle) {
+      setState(() {
+        _isSyncing = false;
+        _hasError = false;
+      });
+      if (status is SyncCompleted) {
+        _refresh();
+      }
+    } else if (status is SyncSyncing && status.hasError) {
+      setState(() {
+        _isSyncing = false;
+        _hasError = true;
+      });
+    }
+  }
+
+  Future<void> _loadPendingCount() async {
+    final count = await _actionStore.getPendingCount();
+    if (mounted) setState(() => _pendingCount = count);
   }
 
   Future<DriverAssignment> _load() async {
@@ -251,55 +312,28 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     DriverAssignment assignment,
     _CompletionProofRequest request,
   ) async {
-    final notes = [
-      'Proof type: ${request.proofTypeLabel}',
-      if (request.receiverName.trim().isNotEmpty)
-        'Receiver name: ${request.receiverName.trim()}',
-      if (request.receiverContact.trim().isNotEmpty)
-        'Receiver contact: ${request.receiverContact.trim()}',
-      if (request.deliveryNotes.trim().isNotEmpty)
-        'Delivery notes: ${request.deliveryNotes.trim()}',
-      if (request.signatureFileName != null)
-        'Receiver signature: ${request.signatureFileName}',
-    ].join('\n');
     final documentType = request.proofType == 'ocr_document'
         ? request.documentType
         : null;
-    final formDataFields = [
-      'assignment_id',
-      'proof_type',
-      if (documentType != null) 'document_type',
-      'file',
-      if (request.receiverName.trim().isNotEmpty) 'receiver_name',
-      if (request.receiverContact.trim().isNotEmpty) 'receiver_contact',
-      if (request.deliveryNotes.trim().isNotEmpty) 'delivery_notes',
-      if (request.signatureFileName != null) 'signature',
-    ];
 
     if (kDebugMode) {
       debugPrint(
-        'Deliverex complete delivery submit payload: {'
+        'Deliverex complete delivery submit: '
         'assignment_id: ${assignment.id}, '
         'proof_type: ${request.proofType}, '
         'document_type: $documentType, '
         'proof_file: ${request.proofFileName}, '
-        'signature_file: ${request.signatureFileName}, '
-        'notes: $notes'
-        '}',
+        'signature_file: ${request.signatureFileName}',
       );
-      debugPrint('Deliverex selected UI label: ${request.proofTypeLabel}');
-      debugPrint('Deliverex mapped backend proof_type: ${request.proofType}');
-      debugPrint('Deliverex mapped backend document_type: $documentType');
-      debugPrint('Deliverex completion proof FormData fields: $formDataFields');
     }
 
     try {
-      final uploadResponse = await _driverService.uploadCompletionProof(
+      final result = await _statusRepository.submitCompletionProof(
         assignmentId: assignment.id,
         proofType: request.proofType,
         documentType: documentType,
-        fileName: request.proofFileName,
-        bytes: request.proofBytes,
+        proofFileName: request.proofFileName,
+        proofBytes: request.proofBytes,
         receiverName: request.receiverName,
         receiverContact: request.receiverContact,
         deliveryNotes: request.deliveryNotes,
@@ -307,41 +341,36 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         signatureBytes: request.signatureBytes,
       );
 
-      if (kDebugMode) {
-        debugPrint(
-          'Deliverex completion proof response status: ${uploadResponse.statusCode}',
-        );
-        debugPrint(
-          'Deliverex completion proof response body: ${uploadResponse.data}',
-        );
-      }
-
-      final statusResponse = await _driverService.postStatus(
-        assignmentId: assignment.id,
-        status: 'completed',
-      );
-
-      if (kDebugMode) {
-        debugPrint(
-          'Deliverex completion status update response status: ${statusResponse.statusCode}',
-        );
-        debugPrint(
-          'Deliverex completion status update response body: ${statusResponse.data}',
-        );
-      }
-
       final refreshedFuture = _load();
       setState(() {
-        _message = 'Delivery completed successfully.';
+        _message = result.synced
+            ? 'Delivery completed successfully.'
+            : (result.message ?? 'Completion saved offline. Will sync when connected.');
         _future = refreshedFuture;
       });
+
+      if (!result.synced && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_off_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(result.message ?? 'Saved offline for later sync.'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } on DioException catch (error) {
       if (kDebugMode) {
         debugPrint(
-          'Deliverex complete delivery Dio error status: ${error.response?.statusCode}',
-        );
-        debugPrint(
-          'Deliverex complete delivery Dio error body: ${error.response?.data}',
+          'Deliverex complete delivery Dio error: ${error.response?.statusCode}',
         );
       }
       throw _CompletionProofException(_backendErrorMessage(error));
@@ -505,52 +534,94 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           const SizedBox(width: 18),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<DriverAssignment>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  const LinearProgressIndicator(),
-                  const SizedBox(height: 14),
-                  DriverEmptyState(
-                    title: 'Loading delivery',
-                    message: 'Fetching assignment details from Deliverex.',
-                    icon: Icons.sync_rounded,
-                  ),
-                ],
-              );
-            }
+      body: Column(
+        children: [
+          ConnectivityBanner(
+            isOnline: _isOnline,
+            isSyncing: _isSyncing,
+            pendingCount: _pendingCount,
+            hasError: _hasError,
+            onSyncTap: () => _syncService.processQueue(),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: FutureBuilder<DriverAssignment>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 14),
+                        DriverEmptyState(
+                          title: 'Loading delivery',
+                          message: 'Fetching assignment details from Deliverex.',
+                          icon: Icons.sync_rounded,
+                        ),
+                      ],
+                    );
+                  }
 
-            if (snapshot.hasError || snapshot.data == null) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  DriverEmptyState(
-                    title: 'Unable to load delivery',
-                    message:
-                        snapshot.error?.toString() ?? 'No assignment found.',
-                    icon: Icons.cloud_off_outlined,
-                  ),
-                ],
-              );
-            }
+                  if (snapshot.hasError || snapshot.data == null) {
+                    return ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        DriverEmptyState(
+                          title: 'Unable to load delivery',
+                          message:
+                              snapshot.error?.toString() ?? 'No assignment found.',
+                          icon: Icons.cloud_off_outlined,
+                        ),
+                      ],
+                    );
+                  }
 
-            final assignment = snapshot.data!;
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                assignment.isActive || assignment.isPending
-                    ? (MediaQuery.paddingOf(context).bottom + 140)
-                    : 24,
-              ),
-              children: [
-                _StatusTrackerCard(assignment: assignment),
+                  final assignment = snapshot.data!;
+                  return ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      20,
+                      20,
+                      assignment.isActive || assignment.isPending
+                          ? (MediaQuery.paddingOf(context).bottom + 140)
+                          : 24,
+                    ),
+                    children: [
+                      if (_pendingCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: DriverCard(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _hasError
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.sync_rounded,
+                                  color: _hasError
+                                      ? AppColors.danger
+                                      : AppColors.warning,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _hasError
+                                        ? 'Sync failed. Tap banner to retry.'
+                                        : '$_pendingCount update${_pendingCount == 1 ? '' : 's'} pending sync',
+                                    style: const TextStyle(
+                                      color: AppColors.mutedText,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      _StatusTrackerCard(assignment: assignment),
                 const SizedBox(height: 14),
                 _ClientCard(assignment: assignment),
                 const SizedBox(height: 14),
@@ -605,7 +676,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           },
         ),
       ),
-      bottomNavigationBar: FutureBuilder<DriverAssignment>(
+    ),
+  ],
+),
+bottomNavigationBar: FutureBuilder<DriverAssignment>(
         future: _future,
         builder: (context, snapshot) {
           final assignment = snapshot.data;

@@ -72,6 +72,10 @@ void backgroundSyncCallback() {
         debugPrint('Deliverex background sync completed. Remaining: $remaining');
       }
 
+      if (pending.isNotEmpty) {
+        await actionStore.removeSyncedOlderThan(const Duration(days: 7));
+      }
+
       return true;
     } catch (e) {
       if (kDebugMode) {

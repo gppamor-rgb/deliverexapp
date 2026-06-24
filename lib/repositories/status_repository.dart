@@ -183,6 +183,102 @@ class StatusRepository {
     }
   }
 
+  Future<StatusUpdateResult> submitCompletionProof({
+    required String assignmentId,
+    required String proofType,
+    String? documentType,
+    required String proofFileName,
+    required List<int> proofBytes,
+    String? receiverName,
+    String? receiverContact,
+    String? deliveryNotes,
+    String? signatureFileName,
+    List<int>? signatureBytes,
+  }) async {
+    final actionTakenAt = DateTime.now().toIso8601String();
+
+    final completionPayload = <String, dynamic>{
+      'assignment_id': assignmentId,
+      'proof_type': proofType,
+      'action_taken_at': actionTakenAt,
+    };
+    if (documentType != null && documentType.trim().isNotEmpty) {
+      completionPayload['document_type'] = documentType.trim();
+    }
+    if (receiverName != null && receiverName.trim().isNotEmpty) {
+      completionPayload['receiver_name'] = receiverName.trim();
+    }
+    if (receiverContact != null && receiverContact.trim().isNotEmpty) {
+      completionPayload['receiver_contact'] = receiverContact.trim();
+    }
+    if (deliveryNotes != null && deliveryNotes.trim().isNotEmpty) {
+      completionPayload['delivery_notes'] = deliveryNotes.trim();
+    }
+    if (signatureFileName != null && signatureBytes != null) {
+      completionPayload['signature_file_name'] = signatureFileName;
+      completionPayload['signature_bytes'] = signatureBytes;
+    }
+
+    final statusPayload = <String, dynamic>{
+      'assignment_id': assignmentId,
+      'status': 'completed',
+      'action_taken_at': actionTakenAt,
+    };
+
+    Future<int> queueCompletionProof() => _actionStore.addPendingAction(
+      actionType: 'completion_proof',
+      payload: completionPayload,
+      fileBytes: proofBytes,
+      fileName: proofFileName,
+      assignmentId: assignmentId,
+    );
+
+    Future<int> queueStatusUpdate() => _actionStore.addPendingAction(
+      actionType: 'status_update',
+      payload: statusPayload,
+      assignmentId: assignmentId,
+    );
+
+    if (!_connectivity.isOnline) {
+      await queueCompletionProof();
+      await queueStatusUpdate();
+      return const StatusUpdateResult(
+        synced: false,
+        message: 'Completion saved offline. Will sync when connection is restored.',
+      );
+    }
+
+    try {
+      await _driverService.uploadCompletionProof(
+        assignmentId: assignmentId,
+        proofType: proofType,
+        documentType: documentType,
+        fileName: proofFileName,
+        bytes: proofBytes,
+        receiverName: receiverName,
+        receiverContact: receiverContact,
+        deliveryNotes: deliveryNotes,
+        signatureFileName: signatureFileName,
+        signatureBytes: signatureBytes,
+      );
+      await _driverService.postStatus(
+        assignmentId: assignmentId,
+        status: 'completed',
+      );
+      return const StatusUpdateResult(synced: true);
+    } on DioException catch (e) {
+      if (_isConnectionError(e)) {
+        await queueCompletionProof();
+        await queueStatusUpdate();
+        return const StatusUpdateResult(
+          synced: false,
+          message: 'Completion saved offline. Will sync when connection is restored.',
+        );
+      }
+      rethrow;
+    }
+  }
+
   bool _isConnectionError(DioException e) {
     return e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||

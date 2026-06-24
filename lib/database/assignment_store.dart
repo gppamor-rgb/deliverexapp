@@ -62,6 +62,16 @@ class AssignmentStore {
     }).toList();
   }
 
+  Future<void> updateAssignmentStatus(String id, String newStatus) async {
+    final existing = await getCachedAssignment(id);
+    if (existing == null) return;
+
+    final updatedRaw = Map<String, dynamic>.from(existing.raw);
+    updatedRaw['status'] = newStatus;
+    final updated = DriverAssignment(updatedRaw);
+    await cacheAssignment(updated);
+  }
+
   Future<void> clearCache() async {
     final db = await _db.database;
     await db.delete('cached_assignments');

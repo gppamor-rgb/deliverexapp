@@ -38,6 +38,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
   var _isOnline = true;
   var _isSyncing = false;
   var _pendingCount = 0;
+  var _hasError = false;
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<SyncStatus>? _syncSub;
 
@@ -69,6 +70,14 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
     _connectivitySub = _connectivity.connectivityStream.listen(_onConnectivityChanged);
     _syncSub = _syncService.syncStream.listen(_onSyncStatusChanged);
     _registerBackgroundSync();
+    _syncOnStart();
+  }
+
+  Future<void> _syncOnStart() async {
+    await _loadPendingCount();
+    if (_isOnline && _pendingCount > 0) {
+      _syncService.processQueue();
+    }
   }
 
   @override
@@ -109,24 +118,36 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
       setState(() {
         _isSyncing = true;
         _pendingCount = status.pendingCount;
+        _hasError = status.hasError;
       });
-    } else if (status is SyncCompleted || status is SyncIdle) {
-      setState(() => _isSyncing = false);
-      if (status is SyncCompleted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Text('All updates synced successfully.'),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            duration: Duration(seconds: 3),
+    } else if (status is SyncCompleted) {
+      setState(() {
+        _isSyncing = false;
+        _hasError = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text('All updates synced successfully.'),
+            ],
           ),
-        );
-      }
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } else if (status is SyncSyncing && status.hasError) {
+      setState(() {
+        _isSyncing = false;
+        _hasError = true;
+      });
+    } else if (status is SyncIdle) {
+      setState(() {
+        _isSyncing = false;
+        _hasError = false;
+      });
     }
   }
 
@@ -161,6 +182,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
             isOnline: _isOnline,
             isSyncing: _isSyncing,
             pendingCount: _pendingCount,
+            hasError: _hasError,
             onSyncTap: () => _syncService.processQueue(),
           ),
           DriverAppHeader(
