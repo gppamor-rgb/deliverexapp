@@ -138,7 +138,8 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-    } else if (status is SyncSyncing && status.hasError) {
+    } else if (status is SyncError) {
+      _loadPendingCount();
       setState(() {
         _isSyncing = false;
         _hasError = true;

@@ -95,7 +95,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       if (status is SyncCompleted) {
         _refresh();
       }
-    } else if (status is SyncSyncing && status.hasError) {
+    } else if (status is SyncError) {
+      _loadPendingCount();
       setState(() {
         _isSyncing = false;
         _hasError = true;

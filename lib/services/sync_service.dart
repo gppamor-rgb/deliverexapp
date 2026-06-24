@@ -44,8 +44,6 @@ class SyncService {
         return;
       }
 
-      var hasError = false;
-
       for (final action in pending) {
         try {
           await executeActionStatic(
@@ -64,7 +62,6 @@ class SyncService {
             debugPrint('Deliverex discarded action ${action.id} (server has newer data)');
           }
         } catch (e) {
-          hasError = true;
           final error = e.toString();
           if (kDebugMode) {
             debugPrint('Deliverex sync failed action ${action.id}: $error');
@@ -79,7 +76,7 @@ class SyncService {
         await _actionStore.removeSyncedOlderThan(const Duration(days: 7));
       } else {
         _syncController.add(
-          SyncSyncing(pendingCount: remaining, hasError: hasError),
+          SyncError('$remaining update${remaining == 1 ? '' : 's'} failed to sync'),
         );
       }
     } finally {
