@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../core/app_colors.dart';
 import '../core/sizes.dart';
-import '../core/transitions.dart';
 import '../services/customer_auth_service.dart';
 import '../widgets/driver/driver_card.dart';
 import '../widgets/driver/driver_primary_button.dart';
-import 'login_screen.dart';
 
 class _NameCapitalizer extends TextInputFormatter {
   @override
@@ -17,10 +15,13 @@ class _NameCapitalizer extends TextInputFormatter {
   ) {
     if (newValue.text.isEmpty) return newValue;
     final text = newValue.text;
-    final capitalized = text.split(' ').map((word) {
-      if (word.isEmpty) return '';
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    final capitalized = text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
     if (capitalized == newValue.text) return newValue;
     return TextEditingValue(
       text: capitalized,
@@ -93,15 +94,15 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
           content: const Text(
             'Your account has been created! Please wait for the admin to activate your account before signing in. If you have a tracking number, you can track your delivery anytime from the home page.',
           ),
-            actions: [
-                TextButton(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
+          actions: [
+            TextButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       if (!mounted) return;
@@ -127,7 +128,12 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
               child: DriverCard(
-                padding: const EdgeInsets.fromLTRB(Sizes.s24, 30, Sizes.s24, Sizes.s24),
+                padding: const EdgeInsets.fromLTRB(
+                  Sizes.s24,
+                  30,
+                  Sizes.s24,
+                  Sizes.s24,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -204,9 +210,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                         enabled: !_submitting,
                         keyboardType: TextInputType.emailAddress,
                         autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                        ),
+                        decoration: const InputDecoration(labelText: 'Email'),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Email is required.';
@@ -278,7 +282,8 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                           labelText: 'Confirm password',
                           suffixIcon: IconButton(
                             onPressed: () => setState(
-                              () => _showConfirmPassword = !_showConfirmPassword,
+                              () =>
+                                  _showConfirmPassword = !_showConfirmPassword,
                             ),
                             icon: Icon(
                               _showConfirmPassword
@@ -325,10 +330,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                         child: TextButton(
                           onPressed: () {
                             HapticFeedback.lightImpact();
-                            AppTransitions.pushReplace(
-                              context,
-                              const LoginScreen(),
-                            );
+                            Navigator.of(context).maybePop();
                           },
                           child: const Text(
                             'Already registered? Sign in',

@@ -4,117 +4,469 @@ import 'package:flutter/services.dart';
 import '../core/app_colors.dart';
 import '../core/sizes.dart';
 import '../core/transitions.dart';
-import 'chatbot_screen.dart';
+import '../services/auth_service.dart';
+import 'customer_shell_screen.dart';
 import 'customer_signup_screen.dart';
-import 'login_screen.dart';
+import 'driver_shell_screen.dart';
 import 'tracking_screen.dart';
 
-class StartScreen extends StatelessWidget {
+class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
+
+  @override
+  State<StartScreen> createState() => _StartScreenState();
+}
+
+class _StartScreenState extends State<StartScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  var _showPassword = false;
+  var _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      final result = await _authService.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      if (result.user.isDriver) {
+        AppTransitions.pushReplace(
+          context,
+          DriverShellScreen(user: result.user),
+        );
+      } else {
+        AppTransitions.pushReplace(
+          context,
+          CustomerShellScreen(user: result.user),
+        );
+      }
+    } on AuthException catch (error) {
+      setState(() => _error = error.message);
+    } catch (_) {
+      setState(() => _error = 'Unable to sign in. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(Sizes.s24),
-              child: Column(
-                children: [
-                  const SizedBox(height: Sizes.s40),
-
-                  Container(
-                    width: 92,
-                    height: 92,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(Sizes.radiusXl),
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 720;
+            final headerHeight = compact ? 196.0 : 292.0;
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: headerHeight,
+                      width: double.infinity,
+                      child: const _BrandHeader(),
                     ),
+                    Transform.translate(
+                      offset: const Offset(0, -20),
+                      child: _LoginPanel(
+                        formKey: _formKey,
+                        emailController: _emailController,
+                        passwordController: _passwordController,
+                        showPassword: _showPassword,
+                        submitting: _submitting,
+                        error: _error,
+                        onTogglePassword: () {
+                          setState(() => _showPassword = !_showPassword);
+                        },
+                        onLogin: _login,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _HeaderPainter(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxHeight < 260;
+          final logoSize = compact ? 76.0 : 118.0;
+          final logoRadius = compact ? 24.0 : 34.0;
+          final innerRadius = compact ? 18.0 : 26.0;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              Sizes.s24,
+              compact ? Sizes.s16 : Sizes.s28,
+              Sizes.s24,
+              0,
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: logoSize,
+                  height: logoSize,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(logoRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(compact ? Sizes.s6 : Sizes.s10),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(Sizes.radiusXl),
+                      borderRadius: BorderRadius.circular(innerRadius),
                       child: Image.asset(
                         'assets/icons/app_icon.png',
-                        width: 92,
-                        height: 92,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
+                ),
+                SizedBox(height: compact ? Sizes.s12 : Sizes.s28),
+                Text(
+                  'Deliverex',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: compact ? 28 : 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: compact ? Sizes.s6 : Sizes.s10),
+                Text(
+                  'Providential 628 Site Preparation Services',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.68),
+                    fontSize: compact ? 13 : 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-                  const SizedBox(height: Sizes.s24),
+class _HeaderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final background = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xff1e3a8a), AppColors.primary, Color(0xff2563eb)],
+      ).createShader(rect);
 
+    canvas.drawRect(rect, background);
+
+    final softShape = Paint()..color = Colors.white.withValues(alpha: 0.06);
+    canvas.drawCircle(Offset(size.width * 0.92, 18), 145, softShape);
+    canvas.drawCircle(
+      Offset(size.width * 0.08, size.height * 0.88),
+      132,
+      softShape,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _LoginPanel extends StatelessWidget {
+  const _LoginPanel({
+    required this.formKey,
+    required this.emailController,
+    required this.passwordController,
+    required this.showPassword,
+    required this.submitting,
+    required this.onTogglePassword,
+    required this.onLogin,
+    this.error,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final bool showPassword;
+  final bool submitting;
+  final String? error;
+  final VoidCallback onTogglePassword;
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 520),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(34),
+          topRight: Radius.circular(34),
+        ),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Sizes.s24,
+              Sizes.s32,
+              Sizes.s24,
+              Sizes.s32,
+            ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   const Text(
-                    'Deliverex',
+                    'Welcome back!',
                     style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+                      color: AppColors.text,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-
                   const SizedBox(height: Sizes.s8),
-
                   const Text(
-                    'Fleet Dispatch • Delivery Tracking • OCR Documentation',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, color: AppColors.textLight),
-                  ),
-
-                  const SizedBox(height: Sizes.s40),
-
-                  _StartButton(
-                    label: 'Login',
-                    icon: Icons.login_rounded,
-                    color: AppColors.primary,
-                    onPressed: () => AppTransitions.push(
-                      context,
-                      const LoginScreen(),
+                    'Sign in to your account to continue.',
+                    style: TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-
-                  const SizedBox(height: Sizes.s12),
-
-                  _StartButton(
-                    label: 'Sign Up as Customer',
-                    icon: Icons.person_add_alt_1_rounded,
-                    color: AppColors.accent,
-                    onPressed: () => AppTransitions.push(
-                      context,
-                      const CustomerSignupScreen(),
+                  const SizedBox(height: Sizes.s32),
+                  const _FieldLabel('Email Address'),
+                  const SizedBox(height: Sizes.s10),
+                  TextFormField(
+                    controller: emailController,
+                    enabled: !submitting,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your email',
+                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Email is required.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: Sizes.s20),
+                  const _FieldLabel('Password'),
+                  const SizedBox(height: Sizes.s10),
+                  TextFormField(
+                    controller: passwordController,
+                    enabled: !submitting,
+                    obscureText: !showPassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      hintText: 'Enter your password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        tooltip: showPassword
+                            ? 'Hide password'
+                            : 'Show password',
+                        onPressed: submitting ? null : onTogglePassword,
+                        icon: Icon(
+                          showPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Password is required.';
+                      }
+                      return null;
+                    },
+                    onFieldSubmitted: (_) => onLogin(),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: Sizes.s16),
+                    Container(
+                      padding: const EdgeInsets.all(Sizes.s12),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(Sizes.radiusSm),
+                      ),
+                      child: Text(
+                        error!,
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: Sizes.s24),
+                  SizedBox(
+                    height: 58,
+                    child: FilledButton(
+                      onPressed: submitting
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              onLogin();
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.primary.withValues(
+                          alpha: 0.62,
+                        ),
+                        disabledForegroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        elevation: 7,
+                        shadowColor: AppColors.primary.withValues(alpha: 0.35),
+                      ),
+                      child: submitting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator.adaptive(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                     ),
                   ),
-
-                  const SizedBox(height: Sizes.s12),
-
-                  _OutlineStartButton(
-                    label: 'Track Delivery',
-                    icon: Icons.search_rounded,
-                    onPressed: () => AppTransitions.push(
-                      context,
-                      const TrackingScreen(),
+                  const SizedBox(height: Sizes.s24),
+                  const _DividerLabel(label: 'or continue without an account'),
+                  const SizedBox(height: Sizes.s22),
+                  SizedBox(
+                    height: 58,
+                    child: OutlinedButton.icon(
+                      onPressed: submitting
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              AppTransitions.push(
+                                context,
+                                const TrackingScreen(),
+                              );
+                            },
+                      icon: const Icon(Icons.inventory_2_outlined, size: 22),
+                      label: const Text('Track a Delivery'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xff1e3a8a),
+                        side: const BorderSide(
+                          color: AppColors.border,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
-
-                  const SizedBox(height: Sizes.s12),
-
-                  _OutlineStartButton(
-                    label: 'Chatbot',
-                    icon: Icons.chat_bubble_outline_rounded,
-                    onPressed: () => AppTransitions.push(
-                      context,
-                      const ChatbotScreen(),
-                    ),
-                  ),
-
-                  const SizedBox(height: Sizes.s40),
-
-                  const Text(
-                    'Providential 628 Site Preparation Services',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: AppColors.textLight),
+                  const SizedBox(height: Sizes.s24),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text(
+                        "Don't have an account? ",
+                        style: TextStyle(
+                          color: AppColors.mutedText,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: submitting
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                AppTransitions.push(
+                                  context,
+                                  const CustomerSignupScreen(),
+                                );
+                              },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -126,86 +478,47 @@ class StartScreen extends StatelessWidget {
   }
 }
 
-class _StartButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onPressed;
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.label);
 
-  const _StartButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onPressed,
-  });
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          onPressed();
-        },
-        icon: Icon(icon, color: Colors.white),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Sizes.radiusMd),
-          ),
-        ),
+    return Text(
+      label,
+      style: const TextStyle(
+        color: AppColors.text,
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
       ),
     );
   }
 }
 
-class _OutlineStartButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
+class _DividerLabel extends StatelessWidget {
+  const _DividerLabel({required this.label});
 
-  const _OutlineStartButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          onPressed();
-        },
-        icon: Icon(icon, color: AppColors.primary),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.primary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+    const labelStyle = TextStyle(
+      color: AppColors.mutedText,
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+    );
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        const Divider(color: AppColors.border),
+        Container(
+          color: AppColors.surface,
+          padding: const EdgeInsets.symmetric(horizontal: Sizes.s8),
+          child: Text(label, textAlign: TextAlign.center, style: labelStyle),
         ),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.primary),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Sizes.radiusMd),
-          ),
-        ),
-      ),
+      ],
     );
   }
 }
