@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/network_errors.dart';
 import '../database/database_helper.dart';
 import '../models/driver_notification.dart';
 import '../services/driver_service.dart';
@@ -77,9 +78,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         widget.onUnreadCountChanged?.call(_computedUnreadCount);
       }
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         if (mounted) {
-          setState(() => _error = 'No internet connection. Pull down to refresh when connected.');
+          setState(
+            () => _error =
+                'No internet connection. Pull down to refresh when connected.',
+          );
         }
       } else if (mounted && !silent) {
         setState(() => _error = e.toString());
@@ -93,13 +97,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() => _loading = false);
       }
     }
-  }
-
-  bool _isConnectionError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.connectionError;
   }
 
   Future<void> _markRead(DriverNotification notification) async {
@@ -117,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _driverService.markNotificationRead(notification.id);
       await _fetch(silent: true);
     } on DioException catch (error) {
-      if (!_isConnectionError(error)) {
+      if (!isNetworkTransportError(error)) {
         _locallyReadIds.remove(notification.id);
         await _saveLocallyReadIds();
         await _fetch();
@@ -176,7 +173,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       }
     } on DioException catch (error) {
-      if (!_isConnectionError(error)) {
+      if (!isNetworkTransportError(error)) {
         for (final notification in unread) {
           _locallyReadIds.remove(notification.id);
         }

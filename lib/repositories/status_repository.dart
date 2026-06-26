@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../services/connectivity_service.dart';
 import '../services/driver_service.dart';
@@ -67,7 +68,7 @@ class StatusRepository {
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         final id = await _actionStore.addPendingAction(
           actionType: 'status_update',
           payload: payload,
@@ -81,7 +82,8 @@ class StatusRepository {
         return StatusUpdateResult(
           synced: false,
           pendingActionId: id,
-          message: 'Status saved offline. Will sync when connection is restored.',
+          message:
+              'Status saved offline. Will sync when connection is restored.',
         );
       }
       rethrow;
@@ -120,7 +122,7 @@ class StatusRepository {
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         await _actionStore.addPendingAction(
           actionType: 'tracking',
           payload: payload,
@@ -168,7 +170,7 @@ class StatusRepository {
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         await _actionStore.addPendingAction(
           actionType: 'delay',
           payload: payload,
@@ -244,7 +246,8 @@ class StatusRepository {
       await queueStatusUpdate();
       return const StatusUpdateResult(
         synced: false,
-        message: 'Completion saved offline. Will sync when connection is restored.',
+        message:
+            'Completion saved offline. Will sync when connection is restored.',
       );
     }
 
@@ -267,22 +270,16 @@ class StatusRepository {
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         await queueCompletionProof();
         await queueStatusUpdate();
         return const StatusUpdateResult(
           synced: false,
-          message: 'Completion saved offline. Will sync when connection is restored.',
+          message:
+              'Completion saved offline. Will sync when connection is restored.',
         );
       }
       rethrow;
     }
-  }
-
-  bool _isConnectionError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.connectionError;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../core/network_errors.dart';
 import '../database/assignment_store.dart';
 import '../models/driver_assignment.dart';
 import '../services/connectivity_service.dart';
@@ -30,7 +31,7 @@ class AssignmentRepository {
       }
       return pageData.assignments;
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         final cached = await _cache.getCachedAssignments();
         return cached;
       }
@@ -48,17 +49,10 @@ class AssignmentRepository {
       await _cache.cacheAssignment(assignment);
       return assignment;
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         return _cache.getCachedAssignment(id);
       }
       rethrow;
     }
-  }
-
-  bool _isConnectionError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.connectionError;
   }
 }

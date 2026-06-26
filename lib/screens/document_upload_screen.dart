@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/app_colors.dart';
+import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
 import '../repositories/assignment_repository.dart';
@@ -54,7 +55,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     final pending = await _actionStore.getPendingActions();
     if (!mounted) return;
     setState(() {
-      _pendingUploadCount = pending.where((a) => a.actionType == 'document').length;
+      _pendingUploadCount = pending
+          .where((a) => a.actionType == 'document')
+          .length;
     });
   }
 
@@ -80,9 +83,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   Future<void> _pickFile({bool imageOnly = false}) async {
     if (imageOnly) {
-      final xFile = await ImagePicker().pickImage(
-        source: ImageSource.camera,
-      );
+      final xFile = await ImagePicker().pickImage(source: ImageSource.camera);
       if (xFile == null) return;
       final bytes = await xFile.readAsBytes();
       setState(() {
@@ -122,6 +123,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
 
     try {
+      if (kDebugMode) {
+        debugPrint(
+          'Deliverex document upload: ${file.name}, ${bytes.length} bytes',
+        );
+      }
       await _driverService.uploadDocument(
         assignmentId: assignment.id,
         type: _type,
@@ -136,7 +142,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         _message = 'Document uploaded successfully.';
       });
     } on DioException catch (e) {
-      if (_isConnectionError(e)) {
+      if (isNetworkTransportError(e)) {
         final payload = <String, dynamic>{
           'assignment_id': assignment.id,
           'type': _type,
@@ -159,7 +165,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         setState(() {
           _file = null;
           _notesController.clear();
-          _message = 'Document saved offline. Will upload when connection is restored.';
+          _message =
+              'Document saved offline. Will upload when connection is restored.';
         });
       } else {
         setState(() => _message = e.toString());
@@ -171,13 +178,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         setState(() => _submitting = false);
       }
     }
-  }
-
-  bool _isConnectionError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.connectionError;
   }
 
   @override

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_colors.dart';
 import '../core/formatters.dart';
+import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
 import '../repositories/assignment_repository.dart';
@@ -58,7 +59,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     _future = _load();
     _loadUnreadCount();
     _isOnline = _connectivity.isOnline;
-    _connectivitySub = _connectivity.connectivityStream.listen(_onConnectivityChanged);
+    _connectivitySub = _connectivity.connectivityStream.listen(
+      _onConnectivityChanged,
+    );
     _syncSub = _syncService.syncStream.listen(_onSyncStatusChanged);
     _loadPendingCount();
   }
@@ -198,7 +201,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       setState(() {
         _message = result.synced
             ? 'Status updated successfully.'
-            : (result.message ?? 'Status saved offline. Will sync when connected.');
+            : (result.message ??
+                  'Status saved offline. Will sync when connected.');
         _future = refreshedFuture;
       });
 
@@ -207,11 +211,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.cloud_off_rounded,
-                    color: Colors.white, size: 20),
+                const Icon(
+                  Icons.cloud_off_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(result.message ?? 'Saved offline for later sync.'),
+                  child: Text(
+                    result.message ?? 'Saved offline for later sync.',
+                  ),
                 ),
               ],
             ),
@@ -382,7 +391,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       setState(() {
         _message = result.synced
             ? 'Delivery completed successfully.'
-            : (result.message ?? 'Completion saved offline. Will sync when connected.');
+            : (result.message ??
+                  'Completion saved offline. Will sync when connected.');
         _future = refreshedFuture;
       });
 
@@ -391,11 +401,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.cloud_off_rounded,
-                    color: Colors.white, size: 20),
+                const Icon(
+                  Icons.cloud_off_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(result.message ?? 'Saved offline for later sync.'),
+                  child: Text(
+                    result.message ?? 'Saved offline for later sync.',
+                  ),
                 ),
               ],
             ),
@@ -595,7 +610,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         const SizedBox(height: 14),
                         DriverEmptyState(
                           title: 'Loading delivery',
-                          message: 'Fetching assignment details from Deliverex.',
+                          message:
+                              'Fetching assignment details from Deliverex.',
                           icon: Icons.sync_rounded,
                         ),
                       ],
@@ -609,7 +625,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         DriverEmptyState(
                           title: 'Unable to load delivery',
                           message:
-                              snapshot.error?.toString() ?? 'No assignment found.',
+                              snapshot.error?.toString() ??
+                              'No assignment found.',
                           icon: Icons.cloud_off_outlined,
                         ),
                       ],
@@ -660,68 +677,69 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           ),
                         ),
                       _StatusTrackerCard(assignment: assignment),
-                const SizedBox(height: 14),
-                _ClientCard(assignment: assignment),
-                const SizedBox(height: 14),
-                _RouteCard(assignment: assignment),
-                const SizedBox(height: 14),
-                _NavigationCard(assignment: assignment),
-                const SizedBox(height: 14),
-                _VehicleCard(assignment: assignment),
-                const SizedBox(height: 14),
-                DriverCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionTitle(
-                        icon: Icons.receipt_long_outlined,
-                        label: 'DELIVERY NOTES',
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        assignment.notes.ifBlank('No delivery notes.'),
-                        style: const TextStyle(
-                          color: AppColors.mutedText,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
+                      const SizedBox(height: 14),
+                      _ClientCard(assignment: assignment),
+                      const SizedBox(height: 14),
+                      _RouteCard(assignment: assignment),
+                      const SizedBox(height: 14),
+                      _NavigationCard(assignment: assignment),
+                      const SizedBox(height: 14),
+                      _VehicleCard(assignment: assignment),
+                      const SizedBox(height: 14),
+                      DriverCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _SectionTitle(
+                              icon: Icons.receipt_long_outlined,
+                              label: 'DELIVERY NOTES',
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              assignment.notes.ifBlank('No delivery notes.'),
+                              style: const TextStyle(
+                                color: AppColors.mutedText,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      if (assignment.statusLogs.isNotEmpty) ...[
+                        _StatusHistoryCard(logs: assignment.statusLogs),
+                      ],
+                      if (_message != null) ...[
+                        const SizedBox(height: 14),
+                        DriverCard(
+                          child: Text(
+                            _message!,
+                            style: TextStyle(
+                              color:
+                                  _message!.contains('success') ||
+                                      _message!.contains('sent')
+                                  ? AppColors.success
+                                  : AppColors.danger,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (assignment.statusLogs.isNotEmpty) ...[
-                  _StatusHistoryCard(logs: assignment.statusLogs),
-                ],
-                if (_message != null) ...[
-                  const SizedBox(height: 14),
-                  DriverCard(
-                    child: Text(
-                      _message!,
-                      style: TextStyle(
-                        color:
-                            _message!.contains('success') ||
-                                _message!.contains('sent')
-                            ? AppColors.success
-                            : AppColors.danger,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-),
-bottomNavigationBar: FutureBuilder<DriverAssignment>(
+      bottomNavigationBar: FutureBuilder<DriverAssignment>(
         future: _future,
         builder: (context, snapshot) {
           final assignment = snapshot.data;
-          if (assignment == null || (!assignment.isActive && !assignment.isPending)) {
+          if (assignment == null ||
+              (!assignment.isActive && !assignment.isPending)) {
             return const SizedBox.shrink();
           }
           return _StickyJobActions(
@@ -783,13 +801,18 @@ bottomNavigationBar: FutureBuilder<DriverAssignment>(
                   assignmentId: assignment.id,
                 );
                 if (mounted) {
-                  setState(() => _message = 'Issue saved offline for later sync.');
+                  setState(
+                    () => _message = 'Issue saved offline for later sync.',
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Row(
                         children: [
-                          Icon(Icons.cloud_off_rounded,
-                              color: Colors.white, size: 20),
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           SizedBox(width: 10),
                           Expanded(
                             child: Text('Issue saved offline for later sync.'),
@@ -815,7 +838,7 @@ bottomNavigationBar: FutureBuilder<DriverAssignment>(
                   setState(() => _message = 'Issue report submitted.');
                 }
               } on DioException catch (e) {
-                if (_isConnectionError(e)) {
+                if (isNetworkTransportError(e)) {
                   final payload = <String, dynamic>{
                     'assignment_id': assignment.id,
                     'issue_type': issueType,
@@ -837,11 +860,16 @@ bottomNavigationBar: FutureBuilder<DriverAssignment>(
                       const SnackBar(
                         content: Row(
                           children: [
-                            Icon(Icons.cloud_off_rounded,
-                                color: Colors.white, size: 20),
+                            Icon(
+                              Icons.cloud_off_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             SizedBox(width: 10),
                             Expanded(
-                              child: Text('Issue saved offline for later sync.'),
+                              child: Text(
+                                'Issue saved offline for later sync.',
+                              ),
                             ),
                           ],
                         ),
@@ -857,13 +885,6 @@ bottomNavigationBar: FutureBuilder<DriverAssignment>(
             },
       ),
     );
-  }
-
-  bool _isConnectionError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.connectionError;
   }
 
   Future<void> _showDelaySheet(DriverAssignment assignment) async {
@@ -889,10 +910,15 @@ bottomNavigationBar: FutureBuilder<DriverAssignment>(
                 const SnackBar(
                   content: Row(
                     children: [
-                      Icon(Icons.cloud_off_rounded,
-                          color: Colors.white, size: 20),
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       SizedBox(width: 10),
-                      Expanded(child: Text('Delay saved offline for later sync.')),
+                      Expanded(
+                        child: Text('Delay saved offline for later sync.'),
+                      ),
                     ],
                   ),
                   backgroundColor: AppColors.warning,
@@ -1710,10 +1736,12 @@ class _StatusHistoryCard extends StatelessWidget {
               final bDate = (b['created_at'] ?? b['timestamp'] ?? '') as String;
               return bDate.compareTo(aDate);
             });
-            return sortedLogs.map((log) => _HistoryRow(
-              rawDate: log['created_at'] ?? log['timestamp'],
-              status: '${log['status'] ?? ''}',
-            ));
+            return sortedLogs.map(
+              (log) => _HistoryRow(
+                rawDate: log['created_at'] ?? log['timestamp'],
+                status: '${log['status'] ?? ''}',
+              ),
+            );
           }(),
         ],
       ),
