@@ -38,6 +38,69 @@ class DriverAssignment {
       buildDisplayAddress('dropoff', jobOrder).ifBlank('—');
   String get schedule => formatJobSchedule(jobOrder);
   String get trackingCode => _string(jobOrder['tracking_code']).ifBlank('—');
+  String get materialType => _firstString([
+    jobOrder['material_type_name'],
+    jobOrder['material'] is Map ? _map(jobOrder['material'])['name'] : null,
+    jobOrder['material_type'] is Map
+        ? _map(jobOrder['material_type'])['name']
+        : null,
+    jobOrder['material_type'],
+    raw['material_type_name'],
+    raw['material'] is Map ? _map(raw['material'])['name'] : null,
+    raw['material_type'] is Map ? _map(raw['material_type'])['name'] : null,
+    raw['material_type'],
+    jobOrder['material_details'],
+    raw['material_details'],
+  ]).ifBlank('—');
+  String get loadVolume => _firstString([
+    _formatCubicMeters(jobOrder['load_volume_m3']),
+    _formatCubicMeters(jobOrder['volume_m3']),
+    _nestedString(jobOrder['load'], ['value', 'volume', 'quantity', 'name']),
+    _nestedString(jobOrder['volume'], ['value', 'volume', 'quantity', 'name']),
+    _nestedString(jobOrder['load_volume'], [
+      'value',
+      'volume',
+      'quantity',
+      'name',
+    ]),
+    jobOrder['load'],
+    jobOrder['load_volume_m3'],
+    jobOrder['load_volume'],
+    jobOrder['loadVolume'],
+    jobOrder['load_quantity'],
+    jobOrder['volume_m3'],
+    jobOrder['volume'],
+    jobOrder['volume_value'],
+    jobOrder['estimated_volume'],
+    jobOrder['total_volume'],
+    jobOrder['load_size'],
+    jobOrder['load_amount'],
+    jobOrder['capacity'],
+    jobOrder['quantity'],
+    jobOrder['qty'],
+    _nestedString(raw['load'], ['value', 'volume', 'quantity', 'name']),
+    _nestedString(raw['volume'], ['value', 'volume', 'quantity', 'name']),
+    _nestedString(raw['load_volume'], ['value', 'volume', 'quantity', 'name']),
+    _formatCubicMeters(raw['load_volume_m3']),
+    _formatCubicMeters(raw['volume_m3']),
+    raw['load'],
+    raw['load_volume_m3'],
+    raw['load_volume'],
+    raw['loadVolume'],
+    raw['load_quantity'],
+    raw['volume_m3'],
+    raw['volume'],
+    raw['volume_value'],
+    raw['estimated_volume'],
+    raw['total_volume'],
+    raw['load_size'],
+    raw['load_amount'],
+    raw['capacity'],
+    raw['quantity'],
+    raw['qty'],
+    jobOrder['load_details'],
+    raw['load_details'],
+  ]).ifBlank('—');
   double? get dropoffLatitude => _firstDouble([
     jobOrder['dropoff_latitude'],
     jobOrder['dropoff_lat'],
@@ -384,6 +447,24 @@ String _firstString(List<dynamic> values) {
     }
   }
   return '';
+}
+
+String _nestedString(dynamic value, List<String> keys) {
+  final map = _map(value);
+  if (map.isEmpty) {
+    return '';
+  }
+  return _firstString(keys.map((key) => map[key]).toList());
+}
+
+String _formatCubicMeters(dynamic value) {
+  final parsed = value is num
+      ? value.toDouble()
+      : double.tryParse(_string(value));
+  if (parsed == null) {
+    return '';
+  }
+  return '${parsed.toStringAsFixed(3)} m³';
 }
 
 String _string(dynamic value) => value?.toString().trim() ?? '';

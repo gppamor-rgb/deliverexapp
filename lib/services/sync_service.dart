@@ -51,12 +51,16 @@ class SyncService {
           );
           await _actionStore.markSynced(action.id!);
           if (kDebugMode) {
-            debugPrint('Deliverex synced action ${action.id}: ${action.actionType}');
+            debugPrint(
+              'Deliverex synced action ${action.id}: ${action.actionType}',
+            );
           }
         } on DiscardActionException {
           await _actionStore.markSynced(action.id!);
           if (kDebugMode) {
-            debugPrint('Deliverex discarded action ${action.id} (server has newer data)');
+            debugPrint(
+              'Deliverex discarded action ${action.id} (server has newer data)',
+            );
           }
         } catch (e) {
           final error = extractServerMessage(e);
@@ -74,7 +78,10 @@ class SyncService {
       } else {
         final lastError = await _actionStore.getLatestError();
         _syncController.add(
-          SyncError(lastError ?? '$remaining update${remaining == 1 ? '' : 's'} failed to sync'),
+          SyncError(
+            lastError ??
+                '$remaining update${remaining == 1 ? '' : 's'} failed to sync',
+          ),
         );
       }
     } finally {
@@ -92,10 +99,16 @@ class SyncService {
     enrichedPayload['sync_id'] = action.id?.toString();
 
     try {
-      await _sendAction(action: action, dio: dio, token: token, payload: enrichedPayload);
+      await _sendAction(
+        action: action,
+        dio: dio,
+        token: token,
+        payload: enrichedPayload,
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 409) {
-        final serverTimestamp = e.response?.data?['server_timestamp'] as String?;
+        final serverTimestamp =
+            e.response?.data?['server_timestamp'] as String?;
         if (serverTimestamp != null &&
             action.actionTakenAt.compareTo(serverTimestamp) < 0) {
           throw DiscardActionException();
@@ -156,6 +169,8 @@ class SyncService {
       case 'document':
         final formData = FormData.fromMap({
           ...payload,
+          if (payload['type'] != null && payload['document_type'] == null)
+            'document_type': payload['type'],
           if (action.fileBytes != null && action.fileName != null)
             'file': MultipartFile.fromBytes(
               action.fileBytes!,
@@ -182,7 +197,8 @@ class SyncService {
           if (payload['signature_bytes'] != null)
             'signature': MultipartFile.fromBytes(
               List<int>.from(payload['signature_bytes'] as List),
-              filename: payload['signature_file_name'] as String? ?? 'signature.png',
+              filename:
+                  payload['signature_file_name'] as String? ?? 'signature.png',
             ),
         });
         formData.fields.removeWhere(

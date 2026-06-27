@@ -11,7 +11,7 @@ import 'tracking_screen.dart';
 
 const _mainOptions = [
   'Track My Delivery',
-  'What is a Job Order ID?',
+  'What is a Tracking ID?',
   'Account Help',
   'Contact Support',
   'General Questions',
@@ -20,6 +20,7 @@ const _mainOptions = [
 const _accountOptions = [
   'Create Account',
   'Login',
+  'Link Delivery',
   'Forgot Password',
 ];
 
@@ -31,18 +32,38 @@ const _quickOptions = [
 
 const _supportEmail = 'deliverex.support@gmail.com';
 const _supportPhone = '(+63) 995-582-0222';
+const _welcomeMessage =
+    'Hello! I can help you with tracking deliveries, Tracking IDs, account assistance, support contacts, and general Deliverex questions.';
+const _trackingIdPrompt =
+    'Please enter your Tracking ID.\n\nExample:\nTRK-ABC123\nor\nDLX-2026-001';
+const _trackingIdFaq =
+    'A Tracking ID is a unique reference number assigned to your delivery. Use it to view delivery status, timeline updates, and Proof of Delivery when available.';
 
 const _faqItems = [
-  ('What does Deliverex do?',
-      'Deliverex manages dispatching, tracking, POD capture, and delivery records.'),
-  ('How do I track my delivery?',
-      'Enter your Job Order ID on the tracking page or use Track My Delivery here.'),
-  ('How do I create an account?',
-      'Select Create Account from Account Help to open customer registration.'),
-  ('Where do I request services?',
-      'You can request assistance through the support contact form and service channels.'),
-  ('What do delivery statuses mean?',
-      'See the delivery status guide for Assigned, En Route, Arrived, and Completed.'),
+  (
+    'What does Deliverex do?',
+    'Deliverex manages dispatching, tracking, POD capture, and delivery records.',
+  ),
+  (
+    'How do I track my delivery?',
+    'Enter your Tracking ID on the tracking page or use Track My Delivery here.',
+  ),
+  (
+    'How do I link a delivery to my account?',
+    'Deliveries assigned to your company may appear automatically after sign-in. If a delivery is missing, contact support with your Tracking ID.',
+  ),
+  (
+    'How do I create an account?',
+    'Company accounts are created by a Deliverex administrator. Customer self-signup is available when enabled for your account.',
+  ),
+  (
+    'Where do I request services?',
+    'You can request assistance through the support contact form and service channels.',
+  ),
+  (
+    'What do delivery statuses mean?',
+    'See the delivery status guide for Assigned, En Route, Arrived, and Completed.',
+  ),
 ];
 
 const _statusGuide = [
@@ -61,7 +82,10 @@ String _sectionLabel(SuggestionState state) {
 }
 
 class ChatbotScreen extends StatefulWidget {
-  const ChatbotScreen({super.key});
+  const ChatbotScreen({super.key, this.embedded = false, this.onClose});
+
+  final bool embedded;
+  final VoidCallback? onClose;
 
   @override
   State<ChatbotScreen> createState() => _ChatbotScreenState();
@@ -73,6 +97,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final _focusNode = FocusNode();
   final _trackingService = TrackingService();
   bool _awaitingTrackInput = false;
+  bool _checkingTracking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _seedWelcomeIfNeeded();
+  }
+
+  void _seedWelcomeIfNeeded() {
+    final provider = ChatbotProvider.instance;
+    if (provider.messages.isNotEmpty) return;
+    provider.addMessage(
+      ChatMessage(
+        role: 'assistant',
+        content: _welcomeMessage,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -87,7 +130,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final provider = ChatbotProvider.instance;
 
     final userMsg = ChatMessage(
-      role: 'user', content: label, timestamp: DateTime.now(),
+      role: 'user',
+      content: label,
+      timestamp: DateTime.now(),
     );
 
     switch (label) {
@@ -99,20 +144,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           userMsg: userMsg,
           assistantMsg: ChatMessage(
             role: 'assistant',
-            content: 'Please enter your Job Order ID.',
+            content: _trackingIdPrompt,
             timestamp: DateTime.now(),
           ),
         );
         break;
 
-      case 'What is a Job Order ID?':
+      case 'What is a Tracking ID?':
         provider.setSuggestionAfter(
           state: SuggestionState.quick,
           userMsg: userMsg,
           assistantMsg: ChatMessage(
             role: 'assistant',
-            content: 'A Job Order ID uniquely identifies a delivery request '
-                'and is used for tracking delivery progress.',
+            content: _trackingIdFaq,
             timestamp: DateTime.now(),
           ),
         );
@@ -121,11 +165,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       case 'Account Help':
         provider.setSuggestionState(SuggestionState.account);
         provider.addMessage(userMsg);
-        provider.addMessage(ChatMessage(
-          role: 'assistant',
-          content: 'Choose an account topic: Create Account, Login, or Forgot Password.',
-          timestamp: DateTime.now(),
-        ));
+        provider.addMessage(
+          ChatMessage(
+            role: 'assistant',
+            content:
+                'Choose an account topic: Create Account, Login, Link Delivery, or Forgot Password.',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'Contact Support':
@@ -138,9 +185,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             timestamp: DateTime.now(),
           ),
         );
-        provider.addMessage(ChatMessage(
-          role: 'assistant', kind: 'contact', timestamp: DateTime.now(),
-        ));
+        provider.addMessage(
+          ChatMessage(
+            role: 'assistant',
+            kind: 'contact',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'General Questions':
@@ -148,28 +199,47 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           state: SuggestionState.quick,
           userMsg: userMsg,
           assistantMsg: ChatMessage(
-            role: 'assistant', kind: 'faq', timestamp: DateTime.now(),
+            role: 'assistant',
+            kind: 'faq',
+            timestamp: DateTime.now(),
           ),
         );
-        provider.addMessage(ChatMessage(
-          role: 'assistant', kind: 'status_guide', timestamp: DateTime.now(),
-        ));
+        provider.addMessage(
+          ChatMessage(
+            role: 'assistant',
+            kind: 'status_guide',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'Create Account':
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CustomerSignupScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const CustomerSignupScreen()));
         provider.setSuggestionState(SuggestionState.quick);
         provider.addMessage(userMsg);
         break;
 
       case 'Login':
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
         provider.setSuggestionState(SuggestionState.quick);
         provider.addMessage(userMsg);
+        break;
+
+      case 'Link Delivery':
+        provider.setSuggestionAfter(
+          state: SuggestionState.quick,
+          userMsg: userMsg,
+          assistantMsg: ChatMessage(
+            role: 'assistant',
+            content:
+                'Deliveries assigned to your company may appear automatically after sign-in. If a delivery is missing, contact support with your Tracking ID so the team can verify it.',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'Forgot Password':
@@ -178,24 +248,31 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           userMsg: userMsg,
           assistantMsg: ChatMessage(
             role: 'assistant',
-            content: 'If you forgot your password, contact support so the team '
+            content:
+                'If you forgot your password, contact support so the team '
                 'can help you recover account access.',
             timestamp: DateTime.now(),
           ),
         );
-        provider.addMessage(ChatMessage(
-          role: 'assistant', kind: 'contact', timestamp: DateTime.now(),
-        ));
+        provider.addMessage(
+          ChatMessage(
+            role: 'assistant',
+            kind: 'contact',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'Return to Menu':
         provider.setSuggestionState(SuggestionState.main);
         provider.addMessage(userMsg);
-        provider.addMessage(ChatMessage(
-          role: 'assistant',
-          content: 'Hello! How can I help you?',
-          timestamp: DateTime.now(),
-        ));
+        provider.addMessage(
+          ChatMessage(
+            role: 'assistant',
+            content: _welcomeMessage,
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
     }
   }
@@ -203,44 +280,53 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Future<void> _handleTrackingLookup(String code) async {
     final trimmed = code.trim();
     if (trimmed.isEmpty) {
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'assistant',
-        content: 'Please enter your Job Order ID.',
-        timestamp: DateTime.now(),
-      ));
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(
+          role: 'assistant',
+          content: _trackingIdPrompt,
+          timestamp: DateTime.now(),
+        ),
+      );
       return;
     }
 
-    ChatbotProvider.instance.addMessage(ChatMessage(
-      role: 'assistant',
-      content: 'Checking delivery details...',
-      timestamp: DateTime.now(),
-    ));
+    setState(() => _checkingTracking = true);
 
     try {
       final result = await _trackingService.lookup(trimmed);
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'assistant',
-        kind: 'tracking',
-        body: {
-          'code': result.trackingCode.isNotEmpty ? result.trackingCode : trimmed,
-          'status': result.statusLabel,
-          'lastUpdated': result.lastUpdated ?? 'Not yet available',
-          'prefill': trimmed,
-        },
-        timestamp: DateTime.now(),
-      ));
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(
+          role: 'assistant',
+          kind: 'tracking',
+          body: {
+            'code': result.trackingCode.isNotEmpty
+                ? result.trackingCode
+                : trimmed,
+            'status': result.statusLabel,
+            'lastUpdated': result.lastUpdated ?? 'Not yet available',
+            'prefill': trimmed,
+          },
+          timestamp: DateTime.now(),
+        ),
+      );
     } catch (err) {
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'assistant',
-        content: err is TrackingLookupException
-            ? err.message
-            : 'Unable to check this Job Order ID right now. Please try again.',
-        isError: true,
-        timestamp: DateTime.now(),
-      ));
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(
+          role: 'assistant',
+          content: err is TrackingLookupException
+              ? err.message
+              : 'Unable to check this Tracking ID right now. Please try again.',
+          isError: true,
+          timestamp: DateTime.now(),
+        ),
+      );
     } finally {
-      setState(() => _awaitingTrackInput = false);
+      if (mounted) {
+        setState(() {
+          _awaitingTrackInput = false;
+          _checkingTracking = false;
+        });
+      }
     }
   }
 
@@ -250,9 +336,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _inputController.clear();
 
     if (_awaitingTrackInput) {
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'user', content: text, timestamp: DateTime.now(),
-      ));
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(role: 'user', content: text, timestamp: DateTime.now()),
+      );
       _handleTrackingLookup(text);
       return;
     }
@@ -260,18 +346,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final lower = text.toLowerCase().trim();
     if (lower.contains('track') || lower.contains('delivery status')) {
       setState(() => _awaitingTrackInput = true);
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'user', content: text, timestamp: DateTime.now(),
-      ));
-      ChatbotProvider.instance.addMessage(ChatMessage(
-        role: 'assistant',
-        content: 'Please enter your Job Order ID.',
-        timestamp: DateTime.now(),
-      ));
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(role: 'user', content: text, timestamp: DateTime.now()),
+      );
+      ChatbotProvider.instance.addMessage(
+        ChatMessage(
+          role: 'assistant',
+          content: _trackingIdPrompt,
+          timestamp: DateTime.now(),
+        ),
+      );
       return;
     }
 
     ChatbotProvider.instance.sendMessage(text);
+  }
+
+  void _clearConversation() {
+    ChatbotProvider.instance.clear();
+    _focusNode.unfocus();
+    setState(() => _awaitingTrackInput = false);
+    _seedWelcomeIfNeeded();
   }
 
   @override
@@ -289,6 +384,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             );
           }
         });
+        final content = _buildChatContent(provider);
+        if (widget.embedded) {
+          return Material(color: AppColors.background, child: content);
+        }
         return Scaffold(
           appBar: AppBar(
             title: const Text('Deliverex Assistant'),
@@ -298,34 +397,99 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded),
                   tooltip: 'Clear conversation',
-                  onPressed: () {
-                    provider.clear();
-                    _focusNode.unfocus();
-                    setState(() => _awaitingTrackInput = false);
-                  },
+                  onPressed: _clearConversation,
                 ),
             ],
           ),
           backgroundColor: AppColors.background,
-          body: Column(
-            children: [
-              Expanded(
-                child: provider.messages.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-                      itemCount: provider.messages.length,
-                      itemBuilder: (context, index) =>
-                          _buildMessage(provider.messages[index]),
-                    ),
-              ),
-              _buildSuggestionChips(),
-              _buildInputBar(),
-            ],
-          ),
+          body: content,
         );
       },
+    );
+  }
+
+  Widget _buildChatContent(ChatbotProvider provider) {
+    return Column(
+      children: [
+        if (widget.embedded) _buildSheetHeader(provider),
+        Expanded(
+          child: provider.messages.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                  itemCount:
+                      provider.messages.length +
+                      ((provider.loading || _checkingTracking) ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= provider.messages.length) {
+                      return const _TypingIndicator();
+                    }
+                    return _buildMessage(provider.messages[index]);
+                  },
+                ),
+        ),
+        _buildSuggestionChips(),
+        _buildInputBar(),
+      ],
+    );
+  }
+
+  Widget _buildSheetHeader(ChatbotProvider provider) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Deliverex Assistant',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Online',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (provider.messages.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded),
+              tooltip: 'Clear conversation',
+              color: Colors.white,
+              onPressed: _clearConversation,
+            ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: 'Close assistant',
+            color: Colors.white,
+            onPressed: widget.onClose ?? () => Navigator.maybePop(context),
+          ),
+        ],
+      ),
     );
   }
 
@@ -344,14 +508,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.chat_outlined, size: 36, color: AppColors.primary,
+                Icons.chat_outlined,
+                size: 36,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 20),
             const Text(
               'Deliverex Assistant',
               style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.text,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
               ),
             ),
             const SizedBox(height: 8),
@@ -359,7 +527,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               'Ask me about tracking deliveries, account help, services, or anything about Deliverex.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14, color: AppColors.mutedText, height: 1.4,
+                fontSize: 14,
+                color: AppColors.mutedText,
+                height: 1.4,
               ),
             ),
           ],
@@ -380,7 +550,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           children: [
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: const BorderRadius.only(
@@ -391,7 +564,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.text.withValues(alpha: 0.06),
-                      blurRadius: 8, offset: const Offset(0, 2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
@@ -400,7 +574,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   children: [
                     Text(
                       msg.content,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.45),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.45,
+                      ),
                     ),
                     if (msg.timestamp != null) ...[
                       const SizedBox(height: 4),
@@ -482,13 +660,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: Text(
               _sectionLabel(state),
               style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700,
-                color: AppColors.mutedText, letterSpacing: 0.5,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.mutedText,
+                letterSpacing: 0.5,
               ),
             ),
           ),
           Wrap(
-            spacing: 8, runSpacing: 8,
+            spacing: 8,
+            runSpacing: 8,
             children: options.map((label) => _buildChip(label, state)).toList(),
           ),
         ],
@@ -531,7 +712,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: text, fontSize: 13, fontWeight: FontWeight.w600,
+              color: text,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -542,16 +725,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Widget _buildInputBar() {
     return Container(
       padding: EdgeInsets.only(
-        left: 14, right: 10, top: 10,
+        left: 14,
+        right: 10,
+        top: 10,
         bottom: MediaQuery.of(context).padding.bottom + 10,
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+        border: Border(
+          top: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 8, offset: const Offset(0, -2),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -565,7 +753,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               onSubmitted: (_) => _onSend(),
               decoration: InputDecoration(
                 hintText: _awaitingTrackInput
-                    ? 'Enter Job Order ID...'
+                    ? 'Enter Tracking ID...'
                     : 'Type a message...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
@@ -573,14 +761,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 ),
                 filled: true,
                 fillColor: AppColors.background,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 8),
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -616,7 +808,8 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isAssistant = role == 'assistant';
     return Container(
-      width: 36, height: 36,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         color: isAssistant
             ? AppColors.primary.withValues(alpha: 0.12)
@@ -625,13 +818,18 @@ class _Avatar extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 4, offset: const Offset(0, 2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       alignment: Alignment.center,
       child: isAssistant
-          ? const Icon(Icons.smart_toy_outlined, size: 20, color: AppColors.primary)
+          ? const Icon(
+              Icons.smart_toy_outlined,
+              size: 20,
+              color: AppColors.primary,
+            )
           : const Icon(Icons.person_outline, size: 20, color: AppColors.accent),
     );
   }
@@ -657,7 +855,8 @@ class _TextBubble extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -666,7 +865,11 @@ class _TextBubble extends StatelessWidget {
         children: [
           Text(
             text,
-            style: const TextStyle(color: AppColors.text, fontSize: 15, height: 1.45),
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 15,
+              height: 1.45,
+            ),
           ),
           if (timestamp != null) ...[
             const SizedBox(height: 4),
@@ -683,6 +886,117 @@ class _TextBubble extends StatelessWidget {
   String _fmtTime(DateTime dt) {
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     return '$hour:${dt.minute.toString().padLeft(2, '0')} ${dt.hour >= 12 ? "PM" : "AM"}';
+  }
+}
+
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _Avatar(role: 'assistant'),
+          SizedBox(width: 10),
+          _TypingBubble(),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypingBubble extends StatefulWidget {
+  const _TypingBubble();
+
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.text.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                Opacity(
+                  opacity:
+                      0.35 + (((_controller.value + (i * 0.22)) % 1.0) * 0.65),
+                  child: const _TypingDot(),
+                ),
+                if (i < 2) const SizedBox(width: 5),
+              ],
+              const SizedBox(width: 10),
+              const Text(
+                'Checking delivery details...',
+                style: TextStyle(
+                  color: AppColors.mutedText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TypingDot extends StatelessWidget {
+  const _TypingDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: const BoxDecoration(
+        color: AppColors.mutedText,
+        shape: BoxShape.circle,
+      ),
+    );
   }
 }
 
@@ -705,7 +1019,8 @@ class _TrackingCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -717,16 +1032,23 @@ class _TrackingCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Delivery Result',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               _StatusBadge(label: status),
             ],
           ),
           const SizedBox(height: 14),
-          _KvRow(label: 'Job Order ID', value: data['code'] as String? ?? ''),
+          _KvRow(label: 'Tracking ID', value: data['code'] as String? ?? ''),
           const SizedBox(height: 8),
-          _KvRow(label: 'Last Updated', value: data['lastUpdated'] as String? ?? ''),
+          _KvRow(
+            label: 'Last Updated',
+            value: data['lastUpdated'] as String? ?? '',
+          ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -768,7 +1090,11 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -776,9 +1102,13 @@ class _StatusBadge extends StatelessWidget {
   Color _colorFor(String value) {
     final lower = value.toLowerCase();
     if (lower.contains('assigned')) return const Color(0xFF2563EB);
-    if (lower.contains('en route') || lower.contains('transit')) return const Color(0xFF0891B2);
+    if (lower.contains('en route') || lower.contains('transit')) {
+      return const Color(0xFF0891B2);
+    }
     if (lower.contains('arrived')) return const Color(0xFFD97706);
-    if (lower.contains('complete') || lower.contains('deliver')) return const Color(0xFF059669);
+    if (lower.contains('complete') || lower.contains('deliver')) {
+      return const Color(0xFF059669);
+    }
     return AppColors.primary;
   }
 }
@@ -798,13 +1128,21 @@ class _KvRow extends StatelessWidget {
           width: 90,
           child: Text(
             label,
-            style: const TextStyle(color: AppColors.mutedText, fontSize: 13, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -826,7 +1164,8 @@ class _ContactCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -835,7 +1174,11 @@ class _ContactCard extends StatelessWidget {
         children: [
           const Text(
             'Contact Support',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: AppColors.text,
+            ),
           ),
           const SizedBox(height: 14),
           InkWell(
@@ -845,11 +1188,20 @@ class _ContactCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  const Icon(Icons.email_outlined, size: 18, color: AppColors.primary),
+                  const Icon(
+                    Icons.email_outlined,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(_supportEmail,
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                    child: Text(
+                      _supportEmail,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -864,11 +1216,20 @@ class _ContactCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  const Icon(Icons.phone_outlined, size: 18, color: AppColors.primary),
+                  const Icon(
+                    Icons.phone_outlined,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(_supportPhone,
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                    child: Text(
+                      _supportPhone,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -877,7 +1238,8 @@ class _ContactCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextButton.icon(
-            onPressed: () => launchUrl(Uri.parse('https://deliverexapp.com/customer')),
+            onPressed: () =>
+                launchUrl(Uri.parse('https://deliverexapp.com/customer')),
             icon: const Icon(Icons.open_in_new_rounded, size: 16),
             label: const Text('Open Contact Form'),
           ),
@@ -901,7 +1263,8 @@ class _FaqCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -910,13 +1273,31 @@ class _FaqCard extends StatelessWidget {
         children: [
           const Text(
             'General Questions (FAQ)',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: AppColors.text,
+            ),
           ),
           const SizedBox(height: 12),
           for (final (q, a) in _faqItems) ...[
-            Text(q, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.text)),
+            Text(
+              q,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: AppColors.text,
+              ),
+            ),
             const SizedBox(height: 3),
-            Text(a, style: const TextStyle(fontSize: 13, color: AppColors.mutedText, height: 1.35)),
+            Text(
+              a,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.mutedText,
+                height: 1.35,
+              ),
+            ),
             const SizedBox(height: 12),
           ],
         ],
@@ -939,7 +1320,8 @@ class _StatusGuideCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.text.withValues(alpha: 0.06),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -948,7 +1330,11 @@ class _StatusGuideCard extends StatelessWidget {
         children: [
           const Text(
             'Delivery Status Guide',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.text),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: AppColors.text,
+            ),
           ),
           const SizedBox(height: 12),
           for (final (label, desc, tone) in _statusGuide) ...[
@@ -957,19 +1343,33 @@ class _StatusGuideCard extends StatelessWidget {
               children: [
                 Container(
                   margin: const EdgeInsets.only(top: 5),
-                  width: 10, height: 10,
-                  decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: tone,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.text),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppColors.text,
+                        ),
                       ),
-                      Text(desc,
-                        style: const TextStyle(fontSize: 13, color: AppColors.mutedText, height: 1.3),
+                      Text(
+                        desc,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.mutedText,
+                          height: 1.3,
+                        ),
                       ),
                     ],
                   ),

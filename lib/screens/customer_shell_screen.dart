@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../models/driver_user.dart';
+import '../widgets/chatbot_chathead.dart';
 import '../widgets/customer/customer_bottom_nav.dart';
 import '../widgets/driver/driver_app_header.dart';
 import 'customer_deliveries_screen.dart';
@@ -47,8 +48,7 @@ class _CustomerShellScreenState extends State<CustomerShellScreen> {
         bottom: false,
         child: Column(
           children: [
-            if (_index != 1)
-              DriverAppHeader(title: _titles[_index]),
+            if (_index != 1) DriverAppHeader(title: _titles[_index]),
             Expanded(child: _screens[_index]),
           ],
         ),
@@ -57,6 +57,7 @@ class _CustomerShellScreenState extends State<CustomerShellScreen> {
         currentIndex: _index,
         onTap: (index) => setState(() => _index = index),
       ),
+      floatingActionButton: const ChatbotChathead(),
     );
   }
 }

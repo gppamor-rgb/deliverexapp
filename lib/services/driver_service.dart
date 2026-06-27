@@ -101,10 +101,12 @@ class DriverService {
     required String fileName,
     required List<int> bytes,
     String? notes,
+    ProgressCallback? onSendProgress,
   }) async {
     final formData = FormData.fromMap({
       'assignment_id': assignmentId,
       'type': type,
+      'document_type': type,
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'file': MultipartFile.fromBytes(bytes, filename: fileName),
     });
@@ -113,6 +115,7 @@ class DriverService {
       '/driver/documents',
       data: formData,
       options: await _authOptions(contentType: 'multipart/form-data'),
+      onSendProgress: onSendProgress,
     );
   }
 

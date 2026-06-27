@@ -10,6 +10,7 @@ import '../services/background_sync.dart';
 import '../services/connectivity_service.dart';
 import '../services/driver_service.dart';
 import '../services/sync_service.dart';
+import '../widgets/chatbot_chathead.dart';
 import '../widgets/driver/connectivity_banner.dart';
 import '../widgets/driver/driver_app_header.dart';
 import '../widgets/driver/driver_bottom_nav.dart';
@@ -47,9 +48,11 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
     DriverHomeScreen(user: widget.user),
     const DriverJobsScreen(),
     const DocumentUploadScreen(),
-    NotificationsScreen(onUnreadCountChanged: (count) {
-      if (mounted) setState(() => _unreadCount = count);
-    }),
+    NotificationsScreen(
+      onUnreadCountChanged: (count) {
+        if (mounted) setState(() => _unreadCount = count);
+      },
+    ),
     ProfileScreen(user: widget.user),
   ];
 
@@ -68,7 +71,9 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
     _isOnline = _connectivity.isOnline;
     _loadUnreadCount();
     _loadPendingCount();
-    _connectivitySub = _connectivity.connectivityStream.listen(_onConnectivityChanged);
+    _connectivitySub = _connectivity.connectivityStream.listen(
+      _onConnectivityChanged,
+    );
     _syncSub = _syncService.syncStream.listen(_onSyncStatusChanged);
     _registerBackgroundSync();
     _syncOnStart();
@@ -94,9 +99,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
       'deliverex_sync',
       backgroundSyncTaskName,
       frequency: const Duration(minutes: 15),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       backoffPolicy: BackoffPolicy.linear,
       backoffPolicyDelay: const Duration(minutes: 1),
@@ -204,6 +207,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
         currentIndex: _index,
         onTap: (index) => setState(() => _index = index),
       ),
+      floatingActionButton: const ChatbotChathead(),
     );
   }
 }

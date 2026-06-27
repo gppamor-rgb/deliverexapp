@@ -684,6 +684,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       const SizedBox(height: 14),
                       _NavigationCard(assignment: assignment),
                       const SizedBox(height: 14),
+                      _LoadDetailsCard(assignment: assignment),
+                      const SizedBox(height: 14),
                       _VehicleCard(assignment: assignment),
                       const SizedBox(height: 14),
                       DriverCard(
@@ -1678,6 +1680,30 @@ class _NavigationCard extends StatelessWidget {
         : 'q=${Uri.encodeComponent(assignment.dropoffAddress)}';
     final uri = Uri.parse('https://waze.com/ul?$query&navigate=yes');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _LoadDetailsCard extends StatelessWidget {
+  const _LoadDetailsCard({required this.assignment});
+
+  final DriverAssignment assignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return DriverCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            icon: Icons.inventory_2_outlined,
+            label: 'LOAD DETAILS',
+          ),
+          const SizedBox(height: 12),
+          _KvRow(label: 'Material Type', value: assignment.materialType),
+          _KvRow(label: 'Load Volume', value: assignment.loadVolume),
+        ],
+      ),
+    );
   }
 }
 

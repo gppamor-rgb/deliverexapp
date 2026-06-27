@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/app_colors.dart';
+import '../core/backend_error_messages.dart';
+import '../core/document_upload_guidance.dart';
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
@@ -34,7 +36,10 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   var _type = 'proof_of_delivery';
   var _submitting = false;
   String? _message;
+  double? _uploadProgress;
   var _pendingUploadCount = 0;
+
+  static const _maxUploadBytes = 10 * 1024 * 1024;
 
   static const _types = [
     ('delivery_receipt', 'Delivery Receipt'),
@@ -83,12 +88,17 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   Future<void> _pickFile({bool imageOnly = false}) async {
     if (imageOnly) {
-      final xFile = await ImagePicker().pickImage(source: ImageSource.camera);
+      final xFile = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1440,
+        maxHeight: 1440,
+        imageQuality: 75,
+      );
       if (xFile == null) return;
       final bytes = await xFile.readAsBytes();
       setState(() {
         _file = PlatformFile(
-          name: xFile.name,
+          name: _normalizedImageFileName(xFile.name),
           size: bytes.length,
           bytes: bytes,
         );
@@ -116,10 +126,27 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       setState(() => _message = 'Select an assignment and document first.');
       return;
     }
+    if (_type == 'proof_of_delivery') {
+      final guidance = proofOfDeliveryGuidance(assignment.status);
+      setState(
+        () => _message =
+            guidance ??
+            'Proof of Delivery must be uploaded from the Mark Complete flow.',
+      );
+      return;
+    }
+    if (bytes.length > _maxUploadBytes) {
+      setState(
+        () => _message =
+            'File is too large. Please upload an image or PDF under 10 MB.',
+      );
+      return;
+    }
 
     setState(() {
       _submitting = true;
-      _message = null;
+      _uploadProgress = null;
+      _message = 'Preparing upload...';
     });
 
     try {
@@ -134,10 +161,27 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         fileName: file.name,
         bytes: bytes,
         notes: _notesController.text,
+        onSendProgress: (sent, total) {
+          if (!mounted) return;
+          if (total <= 0) {
+            setState(() {
+              _uploadProgress = null;
+              _message = 'Uploading document...';
+            });
+            return;
+          }
+          final progress = (sent / total).clamp(0.0, 1.0);
+          final percent = (progress * 100).clamp(1, 99).round();
+          setState(() {
+            _uploadProgress = progress;
+            _message = 'Uploading document... $percent%';
+          });
+        },
       );
       await _loadPendingCount();
       setState(() {
         _file = null;
+        _uploadProgress = null;
         _notesController.clear();
         _message = 'Document uploaded successfully.';
       });
@@ -146,6 +190,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         final payload = <String, dynamic>{
           'assignment_id': assignment.id,
           'type': _type,
+          'document_type': _type,
           'action_taken_at': DateTime.now().toIso8601String(),
         };
         final notes = _notesController.text.trim();
@@ -164,18 +209,41 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
         setState(() {
           _file = null;
+          _uploadProgress = null;
           _notesController.clear();
           _message =
               'Document saved offline. Will upload when connection is restored.';
         });
       } else {
-        setState(() => _message = e.toString());
+        if (kDebugMode) {
+          debugPrint(
+            'Deliverex document upload Dio error: '
+            'status=${e.response?.statusCode}, '
+            'data=${e.response?.data}, '
+            'file=${file.name}, '
+            'bytes=${bytes.length}, '
+            'type=$_type',
+          );
+        }
+        setState(() {
+          _uploadProgress = null;
+          _message = messageFromDioException(
+            e,
+            fallback: 'Unable to upload document. Please check the file.',
+          );
+        });
       }
     } catch (error) {
-      setState(() => _message = error.toString());
+      setState(() {
+        _uploadProgress = null;
+        _message = error.toString();
+      });
     } finally {
       if (mounted) {
-        setState(() => _submitting = false);
+        setState(() {
+          _submitting = false;
+          _uploadProgress = null;
+        });
       }
     }
   }
@@ -425,12 +493,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 Text(
                   _message!,
                   style: TextStyle(
-                    color: _message!.contains('successfully')
-                        ? AppColors.success
-                        : AppColors.danger,
+                    color: _messageColor(_message!),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+              ],
+              if (_submitting) ...[
+                const SizedBox(height: 10),
+                LinearProgressIndicator(value: _uploadProgress),
               ],
               const SizedBox(height: 28),
               DriverPrimaryButton(
@@ -549,6 +619,22 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       'job_order' => Icons.assignment_rounded,
       _ => Icons.description_rounded,
     };
+  }
+
+  Color _messageColor(String message) {
+    if (_submitting) return AppColors.accent;
+    if (message.contains('successfully')) return AppColors.success;
+    if (message.contains('saved offline')) return AppColors.warning;
+    return AppColors.danger;
+  }
+
+  static String _normalizedImageFileName(String name) {
+    final trimmed = name.trim();
+    if (RegExp(r'\.(jpe?g|png)$', caseSensitive: false).hasMatch(trimmed)) {
+      return trimmed;
+    }
+    final base = trimmed.isEmpty ? 'document' : trimmed;
+    return '$base.jpg';
   }
 }
 
