@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../core/document_type_mapper.dart';
 import '../database/action_store.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
@@ -106,6 +107,9 @@ class SyncService {
         payload: enrichedPayload,
       );
     } on DioException catch (e) {
+      if (_isDiscardableUploadValidation(action, e)) {
+        throw DiscardActionException();
+      }
       if (e.response?.statusCode == 409) {
         final serverTimestamp =
             e.response?.data?['server_timestamp'] as String?;
@@ -124,6 +128,17 @@ class SyncService {
       }
       rethrow;
     }
+  }
+
+  static bool _isDiscardableUploadValidation(
+    PendingAction action,
+    DioException error,
+  ) {
+    if (error.response?.statusCode != 422) {
+      return false;
+    }
+    return action.actionType == 'document' ||
+        action.actionType == 'completion_proof';
   }
 
   static Future<void> _sendAction({
@@ -167,10 +182,18 @@ class SyncService {
         );
         break;
       case 'document':
+        final rawType = payload['type']?.toString();
+        final normalizedType = rawType == null
+            ? null
+            : normalizeDocumentType(rawType);
+        final rawDocumentType = payload['document_type']?.toString();
+        final normalizedDocumentType = rawDocumentType == null
+            ? normalizedType
+            : normalizeDocumentType(rawDocumentType);
         final formData = FormData.fromMap({
           ...payload,
-          if (payload['type'] != null && payload['document_type'] == null)
-            'document_type': payload['type'],
+          'type': ?normalizedType,
+          'document_type': ?normalizedDocumentType,
           if (action.fileBytes != null && action.fileName != null)
             'file': MultipartFile.fromBytes(
               action.fileBytes!,

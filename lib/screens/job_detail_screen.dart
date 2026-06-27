@@ -1029,6 +1029,9 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
   var _submitting = false;
   String? _error;
 
+  static const _maxProofBytes = 10 * 1024 * 1024;
+  static const _maxSignatureBytes = 5 * 1024 * 1024;
+
   static const _proofTypes = [
     ('receipt_photo', 'Receipt Photo'),
     ('ocr_document', 'OCR Document'),
@@ -1050,19 +1053,24 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
   }
 
   Future<void> _pickProof() async {
-    final isReceipt = _proofType == 'receipt_photo';
     final result = await FilePicker.platform.pickFiles(
       withData: true,
-      type: isReceipt ? FileType.image : FileType.custom,
-      allowedExtensions: isReceipt
-          ? null
-          : const ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png'],
     );
     if (result == null) {
       return;
     }
+    final file = result.files.single;
+    if (file.bytes != null && file.bytes!.length > _maxProofBytes) {
+      setState(
+        () => _error =
+            'Proof file is too large. Please upload an image under 10 MB.',
+      );
+      return;
+    }
     setState(() {
-      _proofFile = result.files.single;
+      _proofFile = file;
       _error = null;
     });
     if (kDebugMode) {
@@ -1078,7 +1086,18 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
     if (result == null) {
       return;
     }
-    setState(() => _signatureFile = result.files.single);
+    final file = result.files.single;
+    if (file.bytes != null && file.bytes!.length > _maxSignatureBytes) {
+      setState(
+        () => _error =
+            'Signature file is too large. Please upload an image under 5 MB.',
+      );
+      return;
+    }
+    setState(() {
+      _signatureFile = file;
+      _error = null;
+    });
     if (kDebugMode) {
       debugPrint(
         'Deliverex receiver signature captured: ${_signatureFile?.name}',
@@ -1096,6 +1115,21 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
           content: Text('Upload delivery proof before completing.'),
           backgroundColor: AppColors.danger,
         ),
+      );
+      return;
+    }
+    if (proofBytes.length > _maxProofBytes) {
+      setState(
+        () => _error =
+            'Proof file is too large. Please upload an image under 10 MB.',
+      );
+      return;
+    }
+    final signatureBytes = _signatureFile?.bytes;
+    if (signatureBytes != null && signatureBytes.length > _maxSignatureBytes) {
+      setState(
+        () => _error =
+            'Signature file is too large. Please upload an image under 5 MB.',
       );
       return;
     }
@@ -1120,7 +1154,7 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
           receiverContact: _receiverContactController.text,
           deliveryNotes: _notesController.text,
           signatureFileName: _signatureFile?.name,
-          signatureBytes: _signatureFile?.bytes,
+          signatureBytes: signatureBytes,
         ),
       );
       if (mounted) {

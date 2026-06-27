@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/app_colors.dart';
 import '../core/backend_error_messages.dart';
 import '../core/document_upload_guidance.dart';
+import '../core/document_type_mapper.dart';
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
@@ -33,7 +34,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   late Future<List<DriverAssignment>> _future;
   DriverAssignment? _selectedAssignment;
   PlatformFile? _file;
-  var _type = 'proof_of_delivery';
+  var _type = 'receipt';
   var _submitting = false;
   String? _message;
   double? _uploadProgress;
@@ -42,7 +43,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   static const _maxUploadBytes = 10 * 1024 * 1024;
 
   static const _types = [
-    ('delivery_receipt', 'Delivery Receipt'),
+    ('receipt', 'Delivery Receipt'),
     ('invoice', 'Invoice'),
     ('proof_of_delivery', 'Proof of Delivery'),
     ('job_order', 'Job Order'),
@@ -110,7 +111,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     final result = await FilePicker.platform.pickFiles(
       withData: true,
       type: FileType.custom,
-      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+      allowedExtensions: const ['jpg', 'jpeg', 'png'],
     );
     setState(() {
       _file = result?.files.single;
@@ -137,8 +138,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     }
     if (bytes.length > _maxUploadBytes) {
       setState(
-        () => _message =
-            'File is too large. Please upload an image or PDF under 10 MB.',
+        () =>
+            _message = 'File is too large. Please upload an image under 10 MB.',
       );
       return;
     }
@@ -157,7 +158,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       }
       await _driverService.uploadDocument(
         assignmentId: assignment.id,
-        type: _type,
+        type: normalizeDocumentType(_type),
         fileName: file.name,
         bytes: bytes,
         notes: _notesController.text,
@@ -189,8 +190,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       if (isNetworkTransportError(e)) {
         final payload = <String, dynamic>{
           'assignment_id': assignment.id,
-          'type': _type,
-          'document_type': _type,
+          'type': normalizeDocumentType(_type),
+          'document_type': normalizeDocumentType(_type),
           'action_taken_at': DateTime.now().toIso8601String(),
         };
         final notes = _notesController.text.trim();
@@ -573,7 +574,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   'Upload from Device',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-                subtitle: const Text('Browse files (JPG, PNG, PDF)'),
+                subtitle: const Text('Browse image files (JPG, PNG)'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickFile();
@@ -613,7 +614,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   static IconData _iconForType(String type) {
     return switch (type) {
-      'delivery_receipt' => Icons.receipt_long_rounded,
+      'receipt' => Icons.receipt_long_rounded,
       'invoice' => Icons.request_quote_rounded,
       'proof_of_delivery' => Icons.verified_rounded,
       'job_order' => Icons.assignment_rounded,

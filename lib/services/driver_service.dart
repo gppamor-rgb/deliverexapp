@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../core/document_type_mapper.dart';
 import '../models/driver_assignment.dart';
 import '../models/driver_notification.dart';
 import 'api_client.dart';
@@ -103,10 +104,11 @@ class DriverService {
     String? notes,
     ProgressCallback? onSendProgress,
   }) async {
+    final normalizedType = normalizeDocumentType(type);
     final formData = FormData.fromMap({
       'assignment_id': assignmentId,
-      'type': type,
-      'document_type': type,
+      'type': normalizedType,
+      'document_type': normalizedType,
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'file': MultipartFile.fromBytes(bytes, filename: fileName),
     });
