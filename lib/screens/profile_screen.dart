@@ -62,10 +62,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       profile = DriverProfile({});
     }
 
-    return _ProfileData(
-      profile: profile,
-      assignments: assignments,
-    );
+    return _ProfileData(profile: profile, assignments: assignments);
   }
 
   @override
@@ -154,9 +151,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             OutlinedButton.icon(
               onPressed: profile == null
                   ? null
-                  : () => _showEditProfileSheet(raw),
+                  : () => _showEditMobileNumberSheet(raw),
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit Profile'),
+              label: const Text('Edit Mobile Number'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 foregroundColor: AppColors.text,
@@ -293,16 +290,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _showEditProfileSheet(Map<String, dynamic> raw) async {
+  Future<void> _showEditMobileNumberSheet(Map<String, dynamic> raw) async {
     final updated = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditProfileSheet(
-        initialName: stringValue(raw['name']).ifBlank(widget.user.name),
+      builder: (_) => _EditMobileNumberSheet(
         initialPhone: stringValue(raw['phone']),
-        onSubmit: (name, phone) async {
-          await _driverService.updateProfile(name: name, phone: phone);
+        onSubmit: (phone) async {
+          await _driverService.updateProfile(phone: phone);
         },
       ),
     );
@@ -311,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _future = _load());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile updated.'),
+          content: Text('Mobile number updated successfully.'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -436,26 +432,23 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-typedef _EditProfileSubmit = Future<void> Function(String name, String phone);
+typedef _EditMobileNumberSubmit = Future<void> Function(String phone);
 
-class _EditProfileSheet extends StatefulWidget {
-  const _EditProfileSheet({
-    required this.initialName,
+class _EditMobileNumberSheet extends StatefulWidget {
+  const _EditMobileNumberSheet({
     required this.initialPhone,
     required this.onSubmit,
   });
 
-  final String initialName;
   final String initialPhone;
-  final _EditProfileSubmit onSubmit;
+  final _EditMobileNumberSubmit onSubmit;
 
   @override
-  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+  State<_EditMobileNumberSheet> createState() => _EditMobileNumberSheetState();
 }
 
-class _EditProfileSheetState extends State<_EditProfileSheet> {
+class _EditMobileNumberSheetState extends State<_EditMobileNumberSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   var _submitting = false;
   String? _error;
@@ -463,13 +456,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialName);
     _phoneController = TextEditingController(text: widget.initialPhone);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -484,7 +475,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     });
 
     try {
-      await widget.onSubmit(_nameController.text, _phoneController.text);
+      await widget.onSubmit(_phoneController.text);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -530,28 +521,16 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Edit Profile',
+                    'Edit Mobile Number',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _nameController,
-                    enabled: !_submitting,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Name is required.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _phoneController,
                     enabled: !_submitting,
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      labelText: 'Contact number',
+                      labelText: 'Mobile number',
                       hintText: '+63...',
                     ),
                   ),
@@ -567,7 +546,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   ],
                   const SizedBox(height: 20),
                   DriverPrimaryButton(
-                    label: 'Save Profile',
+                    label: 'Save Mobile Number',
                     loading: _submitting,
                     onPressed: _submit,
                   ),

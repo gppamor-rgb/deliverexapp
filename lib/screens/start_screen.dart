@@ -5,8 +5,8 @@ import '../core/app_colors.dart';
 import '../core/sizes.dart';
 import '../core/transitions.dart';
 import '../services/auth_service.dart';
+import 'customer_forgot_password_screen.dart';
 import 'customer_shell_screen.dart';
-import 'customer_signup_screen.dart';
 import 'driver_shell_screen.dart';
 import 'tracking_screen.dart';
 
@@ -286,7 +286,7 @@ class _LoginPanel extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: Sizes.s32),
+                  const SizedBox(height: Sizes.s24),
                   const _FieldLabel('Email Address'),
                   const SizedBox(height: Sizes.s10),
                   TextFormField(
@@ -336,8 +336,35 @@ class _LoginPanel extends StatelessWidget {
                     },
                     onFieldSubmitted: (_) => onLogin(),
                   ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: submitting
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              AppTransitions.push(
+                                context,
+                                const CustomerForgotPasswordScreen(),
+                              );
+                            },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.only(top: Sizes.s4),
+                        minimumSize: const Size(0, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
                   if (error != null) ...[
-                    const SizedBox(height: Sizes.s16),
+                    const SizedBox(height: Sizes.s12),
                     Container(
                       padding: const EdgeInsets.all(Sizes.s12),
                       decoration: BoxDecoration(
@@ -353,7 +380,7 @@ class _LoginPanel extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: Sizes.s24),
+                  const SizedBox(height: Sizes.s18),
                   SizedBox(
                     height: 58,
                     child: FilledButton(
@@ -396,9 +423,9 @@ class _LoginPanel extends StatelessWidget {
                             ),
                     ),
                   ),
-                  const SizedBox(height: Sizes.s24),
+                  const SizedBox(height: Sizes.s18),
                   const _DividerLabel(label: 'or continue without an account'),
-                  const SizedBox(height: Sizes.s22),
+                  const SizedBox(height: Sizes.s16),
                   SizedBox(
                     height: 58,
                     child: OutlinedButton.icon(
@@ -428,45 +455,6 @@ class _LoginPanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: Sizes.s24),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text(
-                        "Don't have an account? ",
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: submitting
-                            ? null
-                            : () {
-                                HapticFeedback.lightImpact();
-                                AppTransitions.push(
-                                  context,
-                                  const CustomerSignupScreen(),
-                                );
-                              },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 36),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

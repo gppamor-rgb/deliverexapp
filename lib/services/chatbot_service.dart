@@ -6,7 +6,10 @@ class ChatbotService {
   bool useMock;
   final _random = Random();
 
-  Future<String> sendMessage(String message, List<Map<String, String>> history) async {
+  Future<String> sendMessage(
+    String message,
+    List<Map<String, String>> history,
+  ) async {
     if (useMock) {
       await Future.delayed(Duration(milliseconds: 600 + _random.nextInt(900)));
       return _mockReply(message);
@@ -14,7 +17,10 @@ class ChatbotService {
     return _realRequest(message, history);
   }
 
-  Future<String> _realRequest(String message, List<Map<String, String>> history) async {
+  Future<String> _realRequest(
+    String message,
+    List<Map<String, String>> history,
+  ) async {
     throw UnimplementedError('Backend chatbot endpoint not yet connected.');
   }
 
@@ -45,7 +51,8 @@ class ChatbotService {
       ]);
     }
 
-    if (lower.contains('job order') || lower.contains('what is') && lower.contains('id')) {
+    if (lower.contains('job order') ||
+        lower.contains('what is') && lower.contains('id')) {
       return _pick([
         'A Job Order ID is a unique code assigned to every delivery request in our system. You can find it in your booking confirmation email or on your account dashboard.',
         "It's a unique identifier for your delivery. You'll receive it when you create a job order through our platform.",
@@ -57,12 +64,14 @@ class ChatbotService {
         lower.contains('register') ||
         lower.contains('create')) {
       return _pick([
-        'To create an account, go to the Start Screen and tap "Sign Up as Customer". You can also log in if you already have an account.',
-        "You can create a customer account by tapping the sign-up option on the main screen. If you're having trouble, our support team is happy to help!",
+        'Customer accounts are created through the Deliverex team or your company setup. Contact support if you need account access.',
+        "If you need customer account access, contact support so the team can help with your company setup.",
       ]);
     }
 
-    if (lower.contains('login') || lower.contains('sign in') || lower.contains('log in')) {
+    if (lower.contains('login') ||
+        lower.contains('sign in') ||
+        lower.contains('log in')) {
       return _pick([
         'You can log in using your registered email and password from the Login screen. If you forgot your password, contact support and we can help you recover access.',
         'Head to the Login screen from the main page. Use the email and password you registered with.',
@@ -73,8 +82,8 @@ class ChatbotService {
         lower.contains('password') ||
         lower.contains('reset')) {
       return _pick([
-        "If you've forgotten your password, please reach out to our support team at deliverex.support@gmail.com and we'll help you regain access to your account.",
-        'No worries! Contact our support team and they can assist you with password recovery.',
+        'Use Forgot Password on the sign-in page to request a reset link by email.',
+        'Enter your customer email on the Forgot Password page and we will send a reset link if the account exists.',
       ]);
     }
 
@@ -110,14 +119,18 @@ class ChatbotService {
       ]);
     }
 
-    if (lower.contains('driver') || lower.contains('rider') || lower.contains('courier')) {
+    if (lower.contains('driver') ||
+        lower.contains('rider') ||
+        lower.contains('courier')) {
       return _pick([
         'Our drivers are assigned through our dispatch system. If you need to contact a driver regarding an active delivery, please reach out to support.',
         'Drivers are dispatched based on availability and proximity. For driver-specific concerns, contact our support team.',
       ]);
     }
 
-    if (lower.contains('thank') || lower.contains('thanks') || lower.contains('appreciate')) {
+    if (lower.contains('thank') ||
+        lower.contains('thanks') ||
+        lower.contains('appreciate')) {
       return _pick([
         "You're welcome! If you have any more questions, feel free to ask.",
         "Happy to help! Don't hesitate to reach out if you need anything else.",

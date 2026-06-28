@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_colors.dart';
 import '../providers/chatbot_provider.dart';
 import '../services/tracking_service.dart';
-import 'customer_signup_screen.dart';
+import 'customer_forgot_password_screen.dart';
 import 'login_screen.dart';
 import 'tracking_screen.dart';
 
@@ -214,11 +214,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         break;
 
       case 'Create Account':
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const CustomerSignupScreen()));
-        provider.setSuggestionState(SuggestionState.quick);
-        provider.addMessage(userMsg);
+        provider.setSuggestionAfter(
+          state: SuggestionState.quick,
+          userMsg: userMsg,
+          assistantMsg: ChatMessage(
+            role: 'assistant',
+            content:
+                'Customer accounts are created through the Deliverex team or your company setup. Contact support if you need account access.',
+            timestamp: DateTime.now(),
+          ),
+        );
         break;
 
       case 'Login':
@@ -243,24 +248,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         break;
 
       case 'Forgot Password':
-        provider.setSuggestionAfter(
-          state: SuggestionState.quick,
-          userMsg: userMsg,
-          assistantMsg: ChatMessage(
-            role: 'assistant',
-            content:
-                'If you forgot your password, contact support so the team '
-                'can help you recover account access.',
-            timestamp: DateTime.now(),
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const CustomerForgotPasswordScreen(),
           ),
         );
-        provider.addMessage(
-          ChatMessage(
-            role: 'assistant',
-            kind: 'contact',
-            timestamp: DateTime.now(),
-          ),
-        );
+        provider.setSuggestionState(SuggestionState.quick);
+        provider.addMessage(userMsg);
         break;
 
       case 'Return to Menu':

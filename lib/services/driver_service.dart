@@ -7,6 +7,10 @@ import '../models/driver_notification.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
 
+Map<String, dynamic> driverProfileUpdateBody({required String phone}) {
+  return {'phone': phone.trim()};
+}
+
 class DriverService {
   DriverService({ApiClient? apiClient, FlutterSecureStorage? storage})
     : _apiClient = apiClient ?? ApiClient(),
@@ -49,13 +53,10 @@ class DriverService {
     return DriverProfile.fromJson(_unwrapObject(response.data));
   }
 
-  Future<Response<dynamic>> updateProfile({
-    required String name,
-    required String phone,
-  }) async {
+  Future<Response<dynamic>> updateProfile({required String phone}) async {
     return _apiClient.dio.put<dynamic>(
       '/driver/profile',
-      data: {'name': name.trim(), 'phone': phone.trim()},
+      data: driverProfileUpdateBody(phone: phone),
       options: await _authOptions(),
     );
   }

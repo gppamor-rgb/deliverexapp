@@ -18,7 +18,8 @@ void main() {
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('or continue without an account'), findsOneWidget);
     expect(find.text('Track a Delivery'), findsOneWidget);
-    expect(find.text('Sign Up'), findsOneWidget);
+    expect(find.text('Forgot Password?'), findsOneWidget);
+    expect(find.text('Sign Up'), findsNothing);
     expect(find.text('Chatbot'), findsNothing);
   });
 
@@ -38,7 +39,7 @@ void main() {
     expect(find.text('Tracking ID'), findsOneWidget);
   });
 
-  testWidgets('opens the sign up screen from the start screen', (
+  testWidgets('opens the forgot password screen from the start screen', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const DeliverexDriverApp());
@@ -46,12 +47,12 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
 
-    await tester.ensureVisible(find.text('Sign Up'));
-    await tester.tap(find.text('Sign Up'));
+    await tester.ensureVisible(find.text('Forgot Password?'));
+    await tester.tap(find.text('Forgot Password?'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Create customer account'), findsOneWidget);
-    expect(find.text('First name'), findsOneWidget);
+    expect(find.text('Reset customer password'), findsOneWidget);
+    expect(find.text('Email'), findsOneWidget);
   });
 
   testWidgets('validates empty sign in fields', (WidgetTester tester) async {

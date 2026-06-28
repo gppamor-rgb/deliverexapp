@@ -23,6 +23,22 @@ class CustomerAuthService {
   final ApiClient _apiClient;
   final FlutterSecureStorage _storage;
 
+  Future<String> forgotPassword({required String email}) async {
+    try {
+      final response = await _apiClient.dio.post<dynamic>(
+        '/auth/forgot-password',
+        data: forgotPasswordBody(email: email),
+      );
+      final data = _ensureMap(response.data);
+      return forgotPasswordSuccessMessage(data);
+    } on DioException catch (error) {
+      if (kDebugMode) {
+        debugPrint('Deliverex forgot password DioException: ${error.type}');
+      }
+      throw AuthException(_messageFromDio(error));
+    }
+  }
+
   Future<CustomerAuthResult> register({
     required String firstName,
     String? middleName,
@@ -45,7 +61,8 @@ class CustomerAuthService {
       }
       body['name'] = [
         firstName.trim(),
-        if (middleName != null && middleName.trim().isNotEmpty) middleName.trim(),
+        if (middleName != null && middleName.trim().isNotEmpty)
+          middleName.trim(),
         lastName.trim(),
       ].join(' ');
       body['mobile'] = mobile?.trim() ?? '';
@@ -192,6 +209,18 @@ class CustomerAuthService {
     }
     return '';
   }
+}
+
+Map<String, dynamic> forgotPasswordBody({required String email}) {
+  return {'email': email.trim()};
+}
+
+String forgotPasswordSuccessMessage(Map<String, dynamic> data) {
+  final message = data['message']?.toString().trim() ?? '';
+  if (message.isNotEmpty) {
+    return message;
+  }
+  return 'If an account exists for that email, a reset link has been sent. Check your inbox and spam folder.';
 }
 
 class AuthException implements Exception {
