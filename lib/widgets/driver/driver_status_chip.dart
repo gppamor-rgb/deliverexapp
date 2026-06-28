@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/delivery_status.dart';
 import '../../models/driver_assignment.dart';
 
 class DriverStatusChip extends StatelessWidget {
@@ -32,16 +33,14 @@ class DriverStatusChip extends StatelessWidget {
   }
 
   Color _colorFor(String value) {
-    final normalized = value.toLowerCase();
-    if (normalized.contains('complete') || normalized.contains('done')) {
-      return AppColors.success;
-    }
-    if (normalized.contains('pending') || normalized.contains('pickup')) {
-      return AppColors.warning;
-    }
-    if (normalized.contains('cancel') || normalized.contains('failed')) {
-      return AppColors.danger;
-    }
-    return AppColors.primary;
+    return switch (canonicalDeliveryStatus(value)) {
+      deliveryStatusCompleted => AppColors.success,
+      deliveryStatusCancelled => AppColors.danger,
+      deliveryStatusArrivedAtPickup ||
+      deliveryStatusArrived => AppColors.warning,
+      deliveryStatusEnRouteToPickup ||
+      deliveryStatusEnRouteToDestination => AppColors.primary,
+      _ => AppColors.primary,
+    };
   }
 }

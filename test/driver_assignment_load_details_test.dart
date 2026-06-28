@@ -34,11 +34,13 @@ void main() {
       'id': 1,
       'job_order': {
         'material_type': 'Gravel',
+        'specification_size': '3/4 inch',
         'load_volume': '12 cubic meters',
       },
     });
 
     expect(assignment.materialType, 'Gravel');
+    expect(assignment.materialSpecification, '3/4 inch');
     expect(assignment.loadVolume, '12 cubic meters');
   });
 
@@ -47,12 +49,36 @@ void main() {
       'id': 1,
       'job_order': {
         'material_type': {'name': 'Sand'},
+        'material_specification': {'name': 'Fine'},
         'quantity': '8 tons',
       },
     });
 
     expect(assignment.materialType, 'Sand');
+    expect(assignment.materialSpecification, 'Fine');
     expect(assignment.loadVolume, '8 tons');
+  });
+
+  test('reads alternate material specification name', () {
+    final assignment = DriverAssignment.fromJson({
+      'id': 1,
+      'job_order': {
+        'material_type': 'Gravel',
+        'material_specification_name': 'Washed',
+      },
+    });
+
+    expect(assignment.materialSpecification, 'Washed');
+  });
+
+  test('reads root material specification fallback', () {
+    final assignment = DriverAssignment.fromJson({
+      'id': 1,
+      'material_specification': {'name': 'Coarse'},
+      'job_order': <String, dynamic>{},
+    });
+
+    expect(assignment.materialSpecification, 'Coarse');
   });
 
   test('reads load field used by the website as mobile load volume', () {
@@ -83,6 +109,7 @@ void main() {
     });
 
     expect(assignment.materialType, '—');
+    expect(assignment.materialSpecification, '—');
     expect(assignment.loadVolume, '—');
   });
 }

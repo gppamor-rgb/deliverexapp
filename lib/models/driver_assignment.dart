@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/delivery_status.dart';
 import '../core/formatters.dart';
 
 class DriverAssignment {
@@ -22,11 +23,23 @@ class DriverAssignment {
   List<Map<String, dynamic>> get trackingLogs => _list(raw['tracking_logs']);
   bool get hasCompletionProof => raw['completion_proof'] != null;
 
-  bool get isCompleted => status == 'completed';
-  bool get isCancelled => status == 'cancelled';
-  bool get isPending => status == 'assigned' || status == 'dispatched';
-  bool get isActive =>
-      status == 'in_progress' || status == 'en_route' || status == 'arrived';
+  bool get isCompleted =>
+      canonicalDeliveryStatus(status) == deliveryStatusCompleted;
+  bool get isCancelled =>
+      canonicalDeliveryStatus(status) == deliveryStatusCancelled;
+  bool get isPending => isPendingDeliveryStatus(status);
+  bool get isActive => isActiveDeliveryStatus(status);
+  String? get nextStatus {
+    final backendNext = _string(raw['next_status']);
+    return backendNext.isNotEmpty ? backendNext : nextDeliveryStatus(status);
+  }
+
+  String get allowedAction {
+    final backendAction = _string(raw['allowed_action']);
+    return backendAction.isNotEmpty
+        ? backendAction
+        : deliveryActionLabel(status);
+  }
 
   String get displayJobNumber => getDisplayJobNumber(this);
   String get publicId => displayJobNumber;
@@ -51,6 +64,26 @@ class DriverAssignment {
     raw['material_type'],
     jobOrder['material_details'],
     raw['material_details'],
+  ]).ifBlank('—');
+  String get materialSpecification => _firstString([
+    jobOrder['specification_size'],
+    jobOrder['material_specification_name'],
+    jobOrder['material_specification'] is Map
+        ? _map(jobOrder['material_specification'])['name']
+        : null,
+    jobOrder['materialSpecification'] is Map
+        ? _map(jobOrder['materialSpecification'])['name']
+        : null,
+    jobOrder['specification'],
+    raw['specification_size'],
+    raw['material_specification_name'],
+    raw['material_specification'] is Map
+        ? _map(raw['material_specification'])['name']
+        : null,
+    raw['materialSpecification'] is Map
+        ? _map(raw['materialSpecification'])['name']
+        : null,
+    raw['specification'],
   ]).ifBlank('—');
   String get loadVolume => _firstString([
     _formatCubicMeters(jobOrder['load_volume_m3']),
@@ -218,27 +251,7 @@ int _scheduledYear(Map<String, dynamic> job) {
 }
 
 String driverStatusLabel(String status) {
-  return switch (status.trim().toLowerCase()) {
-    'in_progress' => 'En Route',
-    'en_route' => 'En Route',
-    'dispatched' => 'Dispatched',
-    'arrived' => 'Arrived',
-    'completed' => 'Completed',
-    'cancelled' => 'Cancelled',
-    'assigned' => 'Assigned',
-    _ => status.trim().isEmpty ? '—' : _titleize(status),
-  };
-}
-
-String _titleize(String value) {
-  return value
-      .replaceAll('_', ' ')
-      .split(' ')
-      .where((part) => part.isNotEmpty)
-      .map(
-        (part) => '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
-      )
-      .join(' ');
+  return deliveryStatusLabel(status);
 }
 
 class DriverAssignmentsPage {

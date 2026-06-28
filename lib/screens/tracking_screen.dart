@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_colors.dart';
-import '../models/driver_assignment.dart';
+import '../core/delivery_status.dart';
 import '../models/delivery_tracking_result.dart';
+import '../models/driver_assignment.dart';
 import '../services/tracking_service.dart';
 import '../widgets/driver/driver_card.dart';
 import '../widgets/driver/driver_empty_state.dart';
@@ -283,32 +284,36 @@ class _StatusSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < _steps.length; i++) ...[
-                Expanded(
-                  child: _TimelineStep(
-                    label: _steps[i].$2,
-                    sublabel: i == currentIndex ? _steps[i].$2 : null,
-                    icon: _steps[i].$3,
-                    active: i == currentIndex,
-                    complete: i < currentIndex,
-                  ),
-                ),
-                if (i < _steps.length - 1)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < _steps.length; i++) ...[
                   SizedBox(
-                    width: 24,
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 17),
-                      height: 2,
-                      color: i < currentIndex
-                          ? AppColors.primary.withValues(alpha: 0.35)
-                          : AppColors.border,
+                    width: 108,
+                    child: _TimelineStep(
+                      label: _steps[i].$2,
+                      sublabel: i == currentIndex ? _steps[i].$2 : null,
+                      icon: _steps[i].$3,
+                      active: i == currentIndex,
+                      complete: i < currentIndex,
                     ),
                   ),
+                  if (i < _steps.length - 1)
+                    SizedBox(
+                      width: 20,
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 17),
+                        height: 2,
+                        color: i < currentIndex
+                            ? AppColors.primary.withValues(alpha: 0.35)
+                            : AppColors.border,
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ],
       ),
@@ -317,18 +322,15 @@ class _StatusSummaryCard extends StatelessWidget {
 
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
-    ('in_progress', 'En Route', Icons.local_shipping_rounded),
+    ('en_route_to_pickup', 'En Route to Pickup', Icons.local_shipping_rounded),
+    ('arrived_at_pickup', 'Arrived at Pickup', Icons.warehouse_rounded),
+    ('en_route_to_destination', 'En Route to Destination', Icons.route_rounded),
     ('arrived', 'Arrived', Icons.location_on_rounded),
     ('completed', 'Completed', Icons.check_circle_rounded),
   ];
 
   int _statusIndex(String status) {
-    return switch (status.toLowerCase()) {
-      'completed' => 3,
-      'arrived' => 2,
-      'in_progress' || 'en_route' => 1,
-      _ => 0,
-    };
+    return deliveryStatusIndex(status);
   }
 }
 
@@ -381,6 +383,7 @@ class _TimelineStep extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
+          softWrap: true,
           style: const TextStyle(
             color: AppColors.text,
             fontSize: 11,
@@ -391,6 +394,7 @@ class _TimelineStep extends StatelessWidget {
           Text(
             sublabel!,
             textAlign: TextAlign.center,
+            softWrap: true,
             style: const TextStyle(
               color: AppColors.primary,
               fontSize: 10,

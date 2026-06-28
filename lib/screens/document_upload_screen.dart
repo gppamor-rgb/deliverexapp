@@ -26,6 +26,11 @@ class DocumentUploadScreen extends StatefulWidget {
   State<DocumentUploadScreen> createState() => _DocumentUploadScreenState();
 }
 
+bool isDocumentUploadSelectableAssignment(DriverAssignment assignment) {
+  return !assignment.isCancelled &&
+      (assignment.isActive || assignment.isPending || assignment.isCompleted);
+}
+
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   final _driverService = DriverService();
   final _assignmentRepo = AssignmentRepository();
@@ -76,9 +81,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   Future<List<DriverAssignment>> _loadAssignments() async {
     try {
       final assignments = await _assignmentRepo.fetchAssignments(page: 1);
-      return assignments
-          .where((assignment) => assignment.isActive || assignment.isPending)
-          .toList();
+      return assignments.where(isDocumentUploadSelectableAssignment).toList();
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Deliverex document_upload: assignments fetch failed: $e');
@@ -132,7 +135,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       setState(
         () => _message =
             guidance ??
-            'Proof of Delivery must be uploaded from the Mark Complete flow.',
+            'Proof of Delivery must be uploaded from the Complete Delivery flow.',
       );
       return;
     }

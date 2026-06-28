@@ -62,14 +62,28 @@ const _faqItems = [
   ),
   (
     'What do delivery statuses mean?',
-    'See the delivery status guide for Assigned, En Route, Arrived, and Completed.',
+    'See the delivery status guide for Assigned, pickup, destination, arrival, and completion stages.',
   ),
 ];
 
 const _statusGuide = [
   ('Assigned', 'Driver assigned.', Color(0xFF2563EB)),
-  ('En Route', 'Delivery is currently in transit.', Color(0xFF0891B2)),
-  ('Arrived', 'Driver has reached destination.', Color(0xFFD97706)),
+  (
+    'En Route to Pickup',
+    'Driver is heading to the pickup point.',
+    Color(0xFF0891B2),
+  ),
+  (
+    'Arrived at Pickup',
+    'Driver has reached the pickup point.',
+    Color(0xFFD97706),
+  ),
+  (
+    'En Route to Destination',
+    'Delivery is in transit to destination.',
+    Color(0xFF7C3AED),
+  ),
+  ('Arrived', 'Driver has reached the destination.', Color(0xFFEA580C)),
   ('Completed', 'Delivery has been successfully completed.', Color(0xFF059669)),
 ];
 

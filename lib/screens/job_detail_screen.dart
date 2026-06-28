@@ -8,6 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_colors.dart';
+import '../core/backend_error_messages.dart';
+import '../core/delivery_status.dart';
 import '../core/formatters.dart';
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
@@ -293,14 +295,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _handlePrimaryAction(DriverAssignment assignment) async {
-    final nextStatus = _nextStatus(assignment.status);
+    final nextStatus = assignment.nextStatus;
     if (nextStatus == null) {
       return;
     }
 
-    if (nextStatus == 'completed') {
+    if (canonicalDeliveryStatus(nextStatus) == deliveryStatusCompleted) {
       if (kDebugMode) {
-        debugPrint('Deliverex Mark Complete tapped');
+        debugPrint('Deliverex Complete Delivery tapped');
       }
       await _showCompleteDeliverySheet(assignment);
       return;
@@ -308,7 +310,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
     final confirmed = await _showStatusConfirmDialog(
       currentLabel: assignment.statusLabel,
-      nextLabel: _nextStatusLabel(assignment.status),
+      nextLabel: assignment.allowedAction,
     );
     if (confirmed != true) return;
 
@@ -429,13 +431,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
-  bool _statusRequiresLocation(String status) {
-    return switch (status.toLowerCase()) {
-      'in_progress' => true,
-      'arrived' => true,
-      _ => false,
-    };
-  }
+  bool _statusRequiresLocation(String status) =>
+      deliveryStatusRequiresLocation(status);
 
   Future<void> _tryPostTracking(String assignmentId, Position position) async {
     try {
@@ -459,41 +456,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   String _backendErrorMessage(DioException error) {
-    final data = error.response?.data;
-    if (data is Map) {
-      final errors = data['errors'];
-      if (errors != null && errors.toString().trim().isNotEmpty) {
-        return _formatValidationErrors(errors);
-      }
-      for (final key in ['message', 'error', 'detail']) {
-        final value = data[key];
-        if (value != null && value.toString().trim().isNotEmpty) {
-          return value.toString();
-        }
-      }
-    }
-    if (data != null && data.toString().trim().isNotEmpty) {
-      return data.toString();
-    }
-    return error.message ?? 'Unable to update delivery status.';
-  }
-
-  String _formatValidationErrors(dynamic errors) {
-    if (errors is Map) {
-      return errors.entries
-          .map((entry) {
-            final value = entry.value;
-            if (value is List) {
-              return '${entry.key}: ${value.join(', ')}';
-            }
-            return '${entry.key}: $value';
-          })
-          .join(' ');
-    }
-    if (errors is List) {
-      return errors.join(' ');
-    }
-    return errors.toString();
+    return messageFromDioException(
+      error,
+      fallback: 'Unable to update delivery status.',
+    );
   }
 
   Future<Position> _capturePosition() async {
@@ -746,8 +712,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           }
           return _StickyJobActions(
             submitting: _submitting,
-            primaryLabel: _nextStatusLabel(assignment.status),
-            onPrimary: _nextStatus(assignment.status) == null
+            primaryLabel: assignment.allowedAction,
+            onPrimary: assignment.nextStatus == null
                 ? null
                 : () => _handlePrimaryAction(assignment),
             onUpload: () => Navigator.of(context).push(
@@ -932,38 +898,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         },
       ),
     );
-  }
-
-  String? _nextStatus(String status) {
-    // Primary status button logic (requirement):
-    // - in_progress/en_route -> Mark Arrived (arrived)
-    // - arrived -> Mark Complete (completed)
-    // - assigned/dispatched -> Start Delivery / Mark En Route (in_progress)
-    return switch (status.toLowerCase()) {
-      'assigned' => 'in_progress',
-      'dispatched' => 'in_progress',
-      'en_route' => 'arrived',
-      'in_progress' => 'arrived',
-      'arrived' => 'completed',
-      _ => null,
-    };
-  }
-
-  String _nextStatusLabel(String status) {
-    // Friendly labels (requirement):
-    // - in_progress/en_route -> Mark Arrived
-    // - arrived -> Mark Complete
-    // - assigned/dispatched -> Start Delivery
-    return switch (status.toLowerCase()) {
-      'assigned' => 'Start Delivery',
-      'dispatched' => 'Start Delivery',
-      'en_route' => 'Mark Arrived',
-      'in_progress' => 'Mark Arrived',
-      'arrived' => 'Mark Complete',
-      'completed' => 'Completed',
-      'cancelled' => 'Cancelled',
-      _ => 'No status action',
-    };
   }
 }
 
@@ -1410,7 +1344,9 @@ class _StatusTrackerCard extends StatelessWidget {
 
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
-    ('in_progress', 'En Route', Icons.local_shipping_rounded),
+    ('en_route_to_pickup', 'En Route to Pickup', Icons.local_shipping_rounded),
+    ('arrived_at_pickup', 'Arrived at Pickup', Icons.warehouse_rounded),
+    ('en_route_to_destination', 'En Route to Destination', Icons.route_rounded),
     ('arrived', 'Arrived', Icons.location_on_rounded),
     ('completed', 'Completed', Icons.check_circle_rounded),
   ];
@@ -1448,32 +1384,36 @@ class _StatusTrackerCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < _steps.length; i++) ...[
-                Expanded(
-                  child: _TimelineStep(
-                    label: _steps[i].$2,
-                    sublabel: i == currentIndex ? _steps[i].$2 : null,
-                    icon: _steps[i].$3,
-                    active: i == currentIndex,
-                    complete: i < currentIndex,
-                  ),
-                ),
-                if (i < _steps.length - 1)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < _steps.length; i++) ...[
                   SizedBox(
-                    width: 24,
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 17),
-                      height: 2,
-                      color: i < currentIndex
-                          ? AppColors.primary.withValues(alpha: 0.35)
-                          : AppColors.border,
+                    width: 108,
+                    child: _TimelineStep(
+                      label: _steps[i].$2,
+                      sublabel: i == currentIndex ? _steps[i].$2 : null,
+                      icon: _steps[i].$3,
+                      active: i == currentIndex,
+                      complete: i < currentIndex,
                     ),
                   ),
+                  if (i < _steps.length - 1)
+                    SizedBox(
+                      width: 20,
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 17),
+                        height: 2,
+                        color: i < currentIndex
+                            ? AppColors.primary.withValues(alpha: 0.35)
+                            : AppColors.border,
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ],
       ),
@@ -1481,12 +1421,7 @@ class _StatusTrackerCard extends StatelessWidget {
   }
 
   int _statusIndex(String status) {
-    return switch (status.toLowerCase()) {
-      'completed' => 3,
-      'arrived' => 2,
-      'in_progress' || 'en_route' => 1,
-      _ => 0,
-    };
+    return deliveryStatusIndex(status);
   }
 }
 
@@ -1539,6 +1474,7 @@ class _TimelineStep extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
+          softWrap: true,
           style: const TextStyle(
             color: AppColors.text,
             fontSize: 11,
@@ -1549,6 +1485,7 @@ class _TimelineStep extends StatelessWidget {
           Text(
             sublabel!,
             textAlign: TextAlign.center,
+            softWrap: true,
             style: const TextStyle(
               color: AppColors.primary,
               fontSize: 10,
@@ -1734,6 +1671,10 @@ class _LoadDetailsCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _KvRow(label: 'Material Type', value: assignment.materialType),
+          _KvRow(
+            label: 'Material Specification',
+            value: assignment.materialSpecification,
+          ),
           _KvRow(label: 'Load Volume', value: assignment.loadVolume),
         ],
       ),

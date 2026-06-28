@@ -1,4 +1,5 @@
 import '../core/formatters.dart';
+import '../core/delivery_status.dart';
 import 'driver_assignment.dart';
 
 class DeliveryTrackingResult {
@@ -116,10 +117,12 @@ class DeliveryTrackingResult {
         ]);
 
   String get _fallbackEtaLabel {
-    return switch (status.toLowerCase()) {
-      'completed' => 'Delivered',
-      'arrived' => 'Arriving now',
-      'in_progress' || 'en_route' => 'In transit',
+    return switch (canonicalDeliveryStatus(status)) {
+      deliveryStatusCompleted => 'Delivered',
+      deliveryStatusArrived => 'Arriving now',
+      deliveryStatusEnRouteToPickup => 'Heading to pickup',
+      deliveryStatusArrivedAtPickup => 'At pickup',
+      deliveryStatusEnRouteToDestination => 'In transit',
       _ => 'Live tracking',
     };
   }
