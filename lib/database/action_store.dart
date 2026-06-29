@@ -83,7 +83,10 @@ class ActionStore {
     final db = await _db.database;
     final now = DateTime.now().toIso8601String();
     final effectiveActionTakenAt =
-        actionTakenAt ?? payload['action_taken_at']?.toString() ?? now;
+        actionTakenAt ??
+        payload['action_timestamp']?.toString() ??
+        payload['action_taken_at']?.toString() ??
+        now;
     final driverId = await _db.getSetting('current_driver_id') ?? '';
 
     return db.insert('offline_actions', {

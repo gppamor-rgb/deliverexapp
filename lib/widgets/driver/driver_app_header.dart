@@ -44,7 +44,7 @@ class DriverAppHeader extends StatelessWidget {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Image.asset(
-                  'assets/icons/brand_logo.png',
+                  'assets/icons/app_icon.png',
                   fit: BoxFit.cover,
                 ),
               ),

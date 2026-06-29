@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../core/helpers.dart';
+import '../core/phone_number.dart';
 import '../core/transitions.dart';
 import '../models/driver_assignment.dart';
 import '../models/driver_user.dart';
@@ -456,7 +457,9 @@ class _EditMobileNumberSheetState extends State<_EditMobileNumberSheet> {
   @override
   void initState() {
     super.initState();
-    _phoneController = TextEditingController(text: widget.initialPhone);
+    _phoneController = TextEditingController(
+      text: normalizePhilippinePhoneInput(widget.initialPhone),
+    );
   }
 
   @override
@@ -475,7 +478,7 @@ class _EditMobileNumberSheetState extends State<_EditMobileNumberSheet> {
     });
 
     try {
-      await widget.onSubmit(_phoneController.text);
+      await widget.onSubmit(phonePayloadValue(_phoneController.text));
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -529,10 +532,12 @@ class _EditMobileNumberSheetState extends State<_EditMobileNumberSheet> {
                     controller: _phoneController,
                     enabled: !_submitting,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: const [PhilippinePhoneInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Mobile number',
-                      hintText: '+63...',
+                      hintText: '+639XXXXXXXXX',
                     ),
+                    validator: (value) => validatePhilippinePhone(value),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),

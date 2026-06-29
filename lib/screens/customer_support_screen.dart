@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_colors.dart';
+import '../core/phone_number.dart';
 import '../core/transitions.dart';
 import '../models/driver_user.dart';
 import '../services/customer_portal_service.dart';
@@ -40,7 +42,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     _portalService = widget.portalService ?? CustomerPortalService();
     _nameController = TextEditingController(text: widget.user.name);
     _emailController = TextEditingController(text: widget.user.email);
-    _phoneController = TextEditingController(text: '+63');
+    _phoneController = TextEditingController(text: philippinePhonePrefix);
     _subjectController = TextEditingController();
     _messageController = TextEditingController();
   }
@@ -96,7 +98,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         message: _messageController.text,
       );
       if (!mounted) return;
-      _phoneController.text = '+63';
+      _phoneController.text = philippinePhonePrefix;
       _subjectController.clear();
       _messageController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,7 +124,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   String get _normalizedPhone {
     final phone = _phoneController.text.trim();
-    return phone == '+63' ? '' : phone;
+    return phonePayloadValue(phone);
   }
 
   @override
@@ -286,8 +288,11 @@ class _InquiryForm extends StatelessWidget {
             _InquiryField(
               controller: phoneController,
               label: 'Phone',
-              hintText: '+63 9XX XXX XXXX',
+              hintText: '+639XXXXXXXXX',
               keyboardType: TextInputType.phone,
+              inputFormatters: const [PhilippinePhoneInputFormatter()],
+              validator: (value) =>
+                  validatePhilippinePhone(value, required: false),
             ),
             const SizedBox(height: 14),
             _InquiryField(
@@ -345,6 +350,7 @@ class _InquiryField extends StatelessWidget {
     this.readOnly = false,
     this.maxLines = 1,
     this.keyboardType,
+    this.inputFormatters,
     this.validator,
   });
 
@@ -354,6 +360,7 @@ class _InquiryField extends StatelessWidget {
   final bool readOnly;
   final int maxLines;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final String? Function(String?)? validator;
 
   @override
@@ -363,6 +370,7 @@ class _InquiryField extends StatelessWidget {
       readOnly: readOnly,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       style: const TextStyle(fontWeight: FontWeight.w800),
       decoration: InputDecoration(

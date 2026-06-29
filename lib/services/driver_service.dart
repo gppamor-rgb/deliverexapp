@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../core/action_timestamp.dart';
 import '../core/document_type_mapper.dart';
 import '../models/driver_assignment.dart';
 import '../models/driver_notification.dart';
@@ -20,8 +21,7 @@ Map<String, dynamic> driverStatusUpdateBody({
   return {
     'assignment_id': assignmentId,
     'status': status,
-    if (actionTakenAt != null && actionTakenAt.isNotEmpty)
-      'action_taken_at': actionTakenAt,
+    ...actionTimestampFields(actionTakenAt),
     // ignore: use_null_aware_elements
     if (latitude != null) 'latitude': latitude,
     // ignore: use_null_aware_elements
@@ -39,6 +39,7 @@ Map<String, dynamic> driverTrackingUpdateBody({
     'assignment_id': assignmentId,
     'latitude': latitude,
     'longitude': longitude,
+    ...actionTimestampFields(capturedAt),
     if (capturedAt != null && capturedAt.isNotEmpty) 'captured_at': capturedAt,
   };
 }
@@ -135,6 +136,7 @@ class DriverService {
     required String fileName,
     required List<int> bytes,
     String? notes,
+    String? actionTakenAt,
     ProgressCallback? onSendProgress,
   }) async {
     final normalizedType = normalizeDocumentType(type);
@@ -142,6 +144,7 @@ class DriverService {
       'assignment_id': assignmentId,
       'type': normalizedType,
       'document_type': normalizedType,
+      ...actionTimestampFields(actionTakenAt),
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'file': MultipartFile.fromBytes(bytes, filename: fileName),
     });
@@ -165,10 +168,12 @@ class DriverService {
     String? deliveryNotes,
     String? signatureFileName,
     List<int>? signatureBytes,
+    String? actionTakenAt,
   }) async {
     final formData = FormData.fromMap({
       'assignment_id': assignmentId,
       'proof_type': proofType,
+      ...actionTimestampFields(actionTakenAt),
       if (documentType != null && documentType.trim().isNotEmpty)
         'document_type': documentType.trim(),
       if (receiverName != null && receiverName.trim().isNotEmpty)
@@ -198,10 +203,12 @@ class DriverService {
     String? notes,
     String? fileName,
     List<int>? bytes,
+    String? actionTakenAt,
   }) async {
     final formData = FormData.fromMap({
       'assignment_id': assignmentId,
       'issue_type': issueType,
+      ...actionTimestampFields(actionTakenAt),
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       if (fileName != null && bytes != null)
         'photo': MultipartFile.fromBytes(bytes, filename: fileName),
@@ -218,12 +225,14 @@ class DriverService {
     required String assignmentId,
     required String delayReason,
     String? notes,
+    String? actionTakenAt,
   }) async {
     await _apiClient.dio.post<dynamic>(
       '/driver/delays',
       data: {
         'assignment_id': assignmentId,
         'delay_reason': delayReason,
+        ...actionTimestampFields(actionTakenAt),
         if (notes != null && notes.trim().isNotEmpty)
           'delay_notes': notes.trim(),
       },

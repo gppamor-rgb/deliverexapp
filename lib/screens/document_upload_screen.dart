@@ -34,6 +34,13 @@ bool isDocumentUploadSelectableAssignment(DriverAssignment assignment) {
 
 const documentUploadSuccessReviewMessage = 'Document submitted successfully.';
 
+const documentUploadTypes = [
+  ('receipt', 'Delivery Receipt'),
+  ('invoice', 'Invoice'),
+  ('job_order', 'Job Order'),
+  ('other', 'Other'),
+];
+
 bool isOcrReviewDocumentType(String type) {
   return switch (normalizeDocumentType(type)) {
     'receipt' || 'invoice' || 'job_order' || 'other' => true,
@@ -98,14 +105,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   var _pendingUploadCount = 0;
 
   static const _maxUploadBytes = 10 * 1024 * 1024;
-
-  static const _types = [
-    ('receipt', 'Delivery Receipt'),
-    ('invoice', 'Invoice'),
-    ('proof_of_delivery', 'Proof of Delivery'),
-    ('job_order', 'Job Order'),
-    ('other', 'Other'),
-  ];
 
   @override
   void initState() {
@@ -213,6 +212,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       _message = 'Preparing upload...';
     });
 
+    final actionTakenAt = DateTime.now().toIso8601String();
+
     try {
       if (kDebugMode) {
         debugPrint(
@@ -225,6 +226,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         fileName: file.name,
         bytes: bytes,
         notes: _notesController.text,
+        actionTakenAt: actionTakenAt,
         onSendProgress: (sent, total) {
           if (!mounted) return;
           if (total <= 0) {
@@ -255,7 +257,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           'assignment_id': assignment.id,
           'type': normalizeDocumentType(_type),
           'document_type': normalizeDocumentType(_type),
-          'action_taken_at': DateTime.now().toIso8601String(),
+          'action_timestamp': actionTakenAt,
+          'action_taken_at': actionTakenAt,
         };
         final notes = _notesController.text.trim();
         if (notes.isNotEmpty) {
@@ -268,6 +271,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           fileBytes: bytes,
           fileName: file.name,
           assignmentId: assignment.id,
+          actionTakenAt: actionTakenAt,
         );
         await _loadPendingCount();
 
@@ -514,7 +518,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                     isExpanded: true,
                     itemHeight: 52,
                     items: [
-                      for (final type in _types)
+                      for (final type in documentUploadTypes)
                         DropdownMenuItem(
                           value: type.$1,
                           child: Row(

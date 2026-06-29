@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+import '../core/action_timestamp.dart';
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../services/connectivity_service.dart';
@@ -36,7 +37,7 @@ class StatusRepository {
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'status': status,
-      'action_taken_at': effectiveActionTakenAt,
+      ...actionTimestampFields(effectiveActionTakenAt),
     };
     if (latitude != null) {
       payload['latitude'] = latitude;
@@ -110,7 +111,7 @@ class StatusRepository {
       'assignment_id': assignmentId,
       'latitude': latitude,
       'longitude': longitude,
-      'action_taken_at': effectiveActionTakenAt,
+      ...actionTimestampFields(effectiveActionTakenAt),
       'captured_at': effectiveActionTakenAt,
     };
 
@@ -157,10 +158,11 @@ class StatusRepository {
     required String delayReason,
     String? notes,
   }) async {
+    final actionTakenAt = DateTime.now().toIso8601String();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'delay_reason': delayReason,
-      'action_taken_at': DateTime.now().toIso8601String(),
+      ...actionTimestampFields(actionTakenAt),
       if (notes != null && notes.trim().isNotEmpty) 'delay_notes': notes.trim(),
     };
 
@@ -169,6 +171,7 @@ class StatusRepository {
         actionType: 'delay',
         payload: payload,
         assignmentId: assignmentId,
+        actionTakenAt: actionTakenAt,
       );
       return StatusUpdateResult(
         synced: false,
@@ -182,6 +185,7 @@ class StatusRepository {
         assignmentId: assignmentId,
         delayReason: delayReason,
         notes: notes,
+        actionTakenAt: actionTakenAt,
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
@@ -190,6 +194,7 @@ class StatusRepository {
           actionType: 'delay',
           payload: payload,
           assignmentId: assignmentId,
+          actionTakenAt: actionTakenAt,
         );
         return const StatusUpdateResult(
           synced: false,
@@ -217,7 +222,7 @@ class StatusRepository {
     final completionPayload = <String, dynamic>{
       'assignment_id': assignmentId,
       'proof_type': proofType,
-      'action_taken_at': actionTakenAt,
+      ...actionTimestampFields(actionTakenAt),
     };
     if (documentType != null && documentType.trim().isNotEmpty) {
       completionPayload['document_type'] = documentType.trim();
@@ -239,7 +244,7 @@ class StatusRepository {
     final statusPayload = <String, dynamic>{
       'assignment_id': assignmentId,
       'status': 'completed',
-      'action_taken_at': actionTakenAt,
+      ...actionTimestampFields(actionTakenAt),
     };
 
     Future<int> queueCompletionProof() => _actionStore.addPendingAction(
@@ -280,6 +285,7 @@ class StatusRepository {
         deliveryNotes: deliveryNotes,
         signatureFileName: signatureFileName,
         signatureBytes: signatureBytes,
+        actionTakenAt: actionTakenAt,
       );
       await _driverService.postStatus(
         assignmentId: assignmentId,

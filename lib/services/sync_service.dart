@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/action_timestamp.dart';
 import '../core/document_type_mapper.dart';
 import '../database/action_store.dart';
 import 'api_client.dart';
@@ -104,7 +105,7 @@ class SyncService {
     required String token,
   }) async {
     final enrichedPayload = Map<String, dynamic>.from(action.payload);
-    enrichedPayload['action_taken_at'] = action.actionTakenAt;
+    enrichedPayload.addAll(actionTimestampFields(action.actionTakenAt));
     if (action.actionType == 'tracking') {
       enrichedPayload['captured_at'] ??= action.actionTakenAt;
     }

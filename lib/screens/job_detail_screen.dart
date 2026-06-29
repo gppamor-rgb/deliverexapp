@@ -12,6 +12,7 @@ import '../core/backend_error_messages.dart';
 import '../core/delivery_status.dart';
 import '../core/formatters.dart';
 import '../core/network_errors.dart';
+import '../core/phone_number.dart';
 import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
 import '../repositories/assignment_repository.dart';
@@ -763,11 +764,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               required fileName,
               required bytes,
             }) async {
+              final actionTakenAt = DateTime.now().toIso8601String();
               if (!_connectivity.isOnline) {
                 final payload = <String, dynamic>{
                   'assignment_id': assignment.id,
                   'issue_type': issueType,
-                  'action_taken_at': DateTime.now().toIso8601String(),
+                  'action_timestamp': actionTakenAt,
+                  'action_taken_at': actionTakenAt,
                 };
                 if (notes.trim().isNotEmpty) payload['notes'] = notes.trim();
                 await _actionStore.addPendingAction(
@@ -776,6 +779,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   fileBytes: bytes,
                   fileName: fileName,
                   assignmentId: assignment.id,
+                  actionTakenAt: actionTakenAt,
                 );
                 if (mounted) {
                   setState(
@@ -810,6 +814,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   notes: notes,
                   fileName: fileName,
                   bytes: bytes,
+                  actionTakenAt: actionTakenAt,
                 );
                 if (mounted) {
                   setState(() => _message = 'Issue report submitted.');
@@ -819,7 +824,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   final payload = <String, dynamic>{
                     'assignment_id': assignment.id,
                     'issue_type': issueType,
-                    'action_taken_at': DateTime.now().toIso8601String(),
+                    'action_timestamp': actionTakenAt,
+                    'action_taken_at': actionTakenAt,
                   };
                   if (notes.trim().isNotEmpty) payload['notes'] = notes.trim();
                   await _actionStore.addPendingAction(
@@ -828,6 +834,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     fileBytes: bytes,
                     fileName: fileName,
                     assignmentId: assignment.id,
+                    actionTakenAt: actionTakenAt,
                   );
                   if (mounted) {
                     setState(
@@ -963,7 +970,9 @@ class _CompleteDeliverySheet extends StatefulWidget {
 
 class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
   final _receiverNameController = TextEditingController();
-  final _receiverContactController = TextEditingController();
+  final _receiverContactController = TextEditingController(
+    text: philippinePhonePrefix,
+  );
   final _notesController = TextEditingController();
   var _proofType = 'receipt_photo';
   var _documentType = 'receipt';
@@ -1076,6 +1085,15 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
       );
       return;
     }
+    final receiverContactError = validatePhilippinePhone(
+      _receiverContactController.text,
+      required: false,
+      fieldName: 'Receiver contact',
+    );
+    if (receiverContactError != null) {
+      setState(() => _error = receiverContactError);
+      return;
+    }
 
     setState(() {
       _submitting = true;
@@ -1094,7 +1112,7 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
           proofFileName: proof.name,
           proofBytes: proofBytes,
           receiverName: _receiverNameController.text,
-          receiverContact: _receiverContactController.text,
+          receiverContact: phonePayloadValue(_receiverContactController.text),
           deliveryNotes: _notesController.text,
           signatureFileName: _signatureFile?.name,
           signatureBytes: signatureBytes,
@@ -1252,7 +1270,8 @@ class _CompleteDeliverySheetState extends State<_CompleteDeliverySheet> {
           controller: _receiverContactController,
           enabled: !_submitting,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(hintText: 'Mobile number'),
+          inputFormatters: const [PhilippinePhoneInputFormatter()],
+          decoration: const InputDecoration(hintText: '+639XXXXXXXXX'),
         ),
         const SizedBox(height: 16),
         const _SheetLabel('Delivery notes (optional)'),

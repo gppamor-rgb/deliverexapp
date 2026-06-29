@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_colors.dart';
+import '../core/phone_number.dart';
 import '../core/sizes.dart';
 import '../services/customer_auth_service.dart';
 import '../widgets/driver/driver_card.dart';
@@ -43,7 +44,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
   final _middleNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _mobileController = TextEditingController();
+  final _mobileController = TextEditingController(text: philippinePhonePrefix);
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _authService = CustomerAuthService();
@@ -77,7 +78,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
         middleName: _middleNameController.text,
         lastName: _lastNameController.text,
         email: _emailController.text,
-        mobile: '+63${_mobileController.text}',
+        mobile: phonePayloadValue(_mobileController.text),
         password: _passwordController.text,
         passwordConfirmation: _confirmPasswordController.text,
       );
@@ -225,24 +226,15 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                       TextFormField(
                         controller: _mobileController,
                         enabled: !_submitting,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: const [
+                          PhilippinePhoneInputFormatter(),
                         ],
                         decoration: const InputDecoration(
                           labelText: 'Mobile Number',
-                          prefixText: '+63 ',
+                          hintText: '+639XXXXXXXXX',
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Mobile number is required.';
-                          }
-                          if (value.length != 10) {
-                            return 'Enter exactly 10 digits after +63.';
-                          }
-                          return null;
-                        },
+                        validator: (value) => validatePhilippinePhone(value),
                       ),
                       const SizedBox(height: 14),
                       TextFormField(

@@ -21,6 +21,7 @@ void main() {
     expect(body, {
       'assignment_id': '7',
       'status': 'arrived',
+      'action_timestamp': '2026-06-30T10:15:00.000',
       'action_taken_at': '2026-06-30T10:15:00.000',
       'latitude': 14.6040792,
       'longitude': 120.9885911,
@@ -39,6 +40,8 @@ void main() {
       'assignment_id': '7',
       'latitude': 14.6040792,
       'longitude': 120.9885911,
+      'action_timestamp': '2026-06-30T10:15:00.000',
+      'action_taken_at': '2026-06-30T10:15:00.000',
       'captured_at': '2026-06-30T10:15:00.000',
     });
   });

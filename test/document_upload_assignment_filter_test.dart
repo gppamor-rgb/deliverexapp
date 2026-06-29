@@ -45,6 +45,19 @@ void main() {
     expect(isOcrReviewDocumentType('proof_of_delivery'), isFalse);
   });
 
+  test('document upload type selector does not include proof of delivery', () {
+    expect(documentUploadTypes.map((type) => type.$2), [
+      'Delivery Receipt',
+      'Invoice',
+      'Job Order',
+      'Other',
+    ]);
+    expect(
+      documentUploadTypes.any((type) => type.$1 == 'proof_of_delivery'),
+      isFalse,
+    );
+  });
+
   test('delivery receipt requires arrived or completed status', () {
     for (final status in [
       'assigned',

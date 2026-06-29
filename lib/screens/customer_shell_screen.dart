@@ -150,10 +150,7 @@ class _CustomerHeader extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset(
-              'assets/icons/brand_logo.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(

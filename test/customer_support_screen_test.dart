@@ -89,6 +89,22 @@ void main() {
     expect(find.text('Message is required.'), findsOneWidget);
   });
 
+  testWidgets('validates partial optional phone field', (tester) async {
+    final service = await pumpScreen(tester);
+
+    await tester.enterText(find.byType(TextFormField).at(2), '+63917');
+    await tester.enterText(find.byType(TextFormField).at(3), 'Delivery help');
+    await tester.enterText(find.byType(TextFormField).at(4), 'Please help.');
+    await tester.tap(find.text('Submit inquiry'));
+    await tester.pump();
+
+    expect(service.payload, isNull);
+    expect(
+      find.text('Enter exactly 10 numeric digits after +63.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('submits inquiry and clears editable fields on success', (
     tester,
   ) async {
