@@ -2,7 +2,24 @@ import 'dart:convert';
 
 import 'package:sqflite/sqflite.dart';
 
+import '../core/action_timestamp.dart';
+import '../services/offline_file_store.dart';
 import 'database_helper.dart';
+
+const _actionMetadataColumns = [
+  'id',
+  'action_type',
+  'payload',
+  'file_path',
+  'file_name',
+  'assignment_id',
+  'action_taken_at',
+  'status',
+  'retry_count',
+  'last_error',
+  'synced_at',
+  'created_at',
+];
 
 class PendingAction {
   final int? id;
@@ -70,6 +87,7 @@ class PendingAction {
 
 class ActionStore {
   final _db = DatabaseHelper.instance;
+  final _fileStore = OfflineFileStore.instance;
 
   Future<int> addPendingAction({
     required String actionType,
@@ -82,18 +100,32 @@ class ActionStore {
   }) async {
     final db = await _db.database;
     final now = DateTime.now().toIso8601String();
+    final fallbackActionTakenAt = actionTimestampNow();
     final effectiveActionTakenAt =
         actionTakenAt ??
         payload['action_timestamp']?.toString() ??
         payload['action_taken_at']?.toString() ??
-        now;
+        fallbackActionTakenAt;
     final driverId = await _db.getSetting('current_driver_id') ?? '';
+    final effectivePayload = Map<String, dynamic>.from(payload);
+    if (fileBytes != null) {
+      effectivePayload.putIfAbsent('file_size', () => fileBytes.length);
+    }
+    final storedFilePath =
+        filePath ??
+        (fileBytes != null && fileName != null
+            ? await _fileStore.saveBytes(
+                actionType: actionType,
+                fileName: fileName,
+                bytes: fileBytes,
+              )
+            : null);
 
     return db.insert('offline_actions', {
       'action_type': actionType,
-      'payload': jsonEncode(payload),
-      'file_path': filePath,
-      'file_bytes': fileBytes,
+      'payload': jsonEncode(effectivePayload),
+      'file_path': storedFilePath,
+      'file_bytes': storedFilePath == null ? fileBytes : null,
       'file_name': fileName,
       'assignment_id': assignmentId,
       'action_taken_at': effectiveActionTakenAt,
@@ -109,22 +141,12 @@ class ActionStore {
     final driverId = await _db.getSetting('current_driver_id') ?? '';
     final rows = await db.query(
       'offline_actions',
+      columns: _actionMetadataColumns,
       where: 'status IN (?, ?) AND driver_id IN (?, ?)',
       whereArgs: ['pending', 'failed', driverId, ''],
       orderBy: 'created_at ASC',
     );
-    final actions = rows.map(PendingAction.fromMap).toList();
-    for (final action in actions) {
-      if (action.status == 'failed') {
-        await db.update(
-          'offline_actions',
-          {'status': 'pending', 'retry_count': 0, 'last_error': null},
-          where: 'id = ?',
-          whereArgs: [action.id],
-        );
-      }
-    }
-    return actions;
+    return rows.map(PendingAction.fromMap).toList();
   }
 
   Future<int> getPendingCount() async {
@@ -139,18 +161,32 @@ class ActionStore {
 
   Future<void> markSynced(int id) async {
     final db = await _db.database;
+    final rows = await db.query(
+      'offline_actions',
+      columns: _actionMetadataColumns,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    final action = rows.isEmpty ? null : PendingAction.fromMap(rows.first);
     await db.update(
       'offline_actions',
       {'status': 'synced', 'synced_at': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: [id],
     );
+    if (action != null) {
+      await _fileStore.deleteActionFiles(
+        filePath: action.filePath,
+        payload: action.payload,
+      );
+    }
   }
 
   Future<void> markFailed(int id, {String? error}) async {
     final db = await _db.database;
     final action = await db.query(
       'offline_actions',
+      columns: _actionMetadataColumns,
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -161,7 +197,7 @@ class ActionStore {
 
     await db.update(
       'offline_actions',
-      {'status': 'pending', 'retry_count': newRetryCount, 'last_error': error},
+      {'status': 'failed', 'retry_count': newRetryCount, 'last_error': error},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -177,20 +213,40 @@ class ActionStore {
     );
   }
 
-  Future<String?> getLatestError() async {
+  Future<String?> getLatestError({String? actionType}) async {
     final db = await _db.database;
+    final where = StringBuffer('last_error IS NOT NULL');
+    final args = <Object?>[];
+    if (actionType != null && actionType.isNotEmpty) {
+      where.write(' AND action_type = ?');
+      args.add(actionType);
+    }
     final rows = await db.query(
       'offline_actions',
-      where: 'last_error IS NOT NULL',
+      columns: ['last_error'],
+      where: where.toString(),
+      whereArgs: args,
       orderBy: 'created_at DESC',
       limit: 1,
     );
     if (rows.isEmpty) return null;
-    return PendingAction.fromMap(rows.first).lastError;
+    return rows.first['last_error'] as String?;
   }
 
   Future<void> clearAll() async {
     final db = await _db.database;
+    final rows = await db.query(
+      'offline_actions',
+      columns: ['file_path', 'payload'],
+    );
+    for (final row in rows) {
+      final payload =
+          jsonDecode(row['payload'] as String) as Map<String, dynamic>;
+      await _fileStore.deleteActionFiles(
+        filePath: row['file_path'] as String?,
+        payload: payload,
+      );
+    }
     await db.delete('offline_actions');
   }
 }

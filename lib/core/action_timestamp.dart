@@ -1,3 +1,5 @@
+String actionTimestampNow() => DateTime.now().toUtc().toIso8601String();
+
 Map<String, dynamic> actionTimestampFields(String? actionTakenAt) {
   if (actionTakenAt == null || actionTakenAt.isEmpty) {
     return const {};

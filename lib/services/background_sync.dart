@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../database/action_store.dart';
@@ -11,6 +14,9 @@ const backgroundSyncTaskName = 'deliverex_background_sync';
 @pragma('vm:entry-point')
 void backgroundSyncCallback() {
   Workmanager().executeTask((task, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
+
     if (kDebugMode) {
       debugPrint('Deliverex background sync started: $task');
     }

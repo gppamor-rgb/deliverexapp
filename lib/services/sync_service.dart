@@ -7,6 +7,7 @@ import '../core/action_timestamp.dart';
 import '../core/document_type_mapper.dart';
 import '../database/action_store.dart';
 import 'api_client.dart';
+import 'offline_file_store.dart';
 import 'session_service.dart';
 
 class DiscardActionException implements Exception {}
@@ -105,11 +106,26 @@ class SyncService {
     required String token,
   }) async {
     final enrichedPayload = Map<String, dynamic>.from(action.payload);
+    enrichedPayload.remove('synced_at');
+    enrichedPayload.remove('captured_at');
+    enrichedPayload.remove('file_size');
+    enrichedPayload.remove('signature_file_size');
     enrichedPayload.addAll(actionTimestampFields(action.actionTakenAt));
     if (action.actionType == 'tracking') {
-      enrichedPayload['captured_at'] ??= action.actionTakenAt;
+      enrichedPayload['captured_at'] = action.actionTakenAt;
     }
     enrichedPayload['sync_id'] = action.id?.toString();
+    if (kDebugMode) {
+      debugPrint(
+        'Deliverex sync replay action id=${action.id} '
+        'type=${action.actionType} '
+        'actionTakenAt=${action.actionTakenAt} '
+        'syncTime=${DateTime.now().toIso8601String()} '
+        'action_timestamp=${enrichedPayload['action_timestamp']} '
+        'action_taken_at=${enrichedPayload['action_taken_at']} '
+        'captured_at=${enrichedPayload['captured_at']}',
+      );
+    }
 
     try {
       await _sendAction(
@@ -119,9 +135,6 @@ class SyncService {
         payload: enrichedPayload,
       );
     } on DioException catch (e) {
-      if (_isDiscardableUploadValidation(action, e)) {
-        throw DiscardActionException();
-      }
       if (e.response?.statusCode == 409) {
         final serverTimestamp =
             e.response?.data?['server_timestamp'] as String?;
@@ -140,17 +153,6 @@ class SyncService {
       }
       rethrow;
     }
-  }
-
-  static bool _isDiscardableUploadValidation(
-    PendingAction action,
-    DioException error,
-  ) {
-    if (error.response?.statusCode != 422) {
-      return false;
-    }
-    return action.actionType == 'document' ||
-        action.actionType == 'completion_proof';
   }
 
   static Future<void> _sendAction({
@@ -179,11 +181,12 @@ class SyncService {
         await dio.post('/driver/delays', data: payload, options: opts);
         break;
       case 'issue':
+        final photoBytes = await _queuedFileBytes(action);
         final formData = FormData.fromMap({
           ...payload,
-          if (action.fileBytes != null && action.fileName != null)
+          if (photoBytes != null && action.fileName != null)
             'photo': MultipartFile.fromBytes(
-              action.fileBytes!,
+              photoBytes,
               filename: action.fileName!,
             ),
         });
@@ -198,6 +201,7 @@ class SyncService {
         );
         break;
       case 'document':
+        final documentBytes = await _queuedFileBytes(action);
         final rawType = payload['type']?.toString();
         final normalizedType = rawType == null
             ? null
@@ -210,9 +214,9 @@ class SyncService {
           ...payload,
           'type': ?normalizedType,
           'document_type': ?normalizedDocumentType,
-          if (action.fileBytes != null && action.fileName != null)
+          if (documentBytes != null && action.fileName != null)
             'file': MultipartFile.fromBytes(
-              action.fileBytes!,
+              documentBytes,
               filename: action.fileName!,
             ),
         });
@@ -227,16 +231,18 @@ class SyncService {
         );
         break;
       case 'completion_proof':
+        final proofBytes = await _queuedFileBytes(action);
+        final signatureBytes = await _queuedSignatureBytes(payload);
         final formData = FormData.fromMap({
           ...payload,
-          if (action.fileBytes != null && action.fileName != null)
+          if (proofBytes != null && action.fileName != null)
             'file': MultipartFile.fromBytes(
-              action.fileBytes!,
+              proofBytes,
               filename: action.fileName!,
             ),
-          if (payload['signature_bytes'] != null)
+          if (signatureBytes != null)
             'signature': MultipartFile.fromBytes(
-              List<int>.from(payload['signature_bytes'] as List),
+              signatureBytes,
               filename:
                   payload['signature_file_name'] as String? ?? 'signature.png',
             ),
@@ -244,7 +250,8 @@ class SyncService {
         formData.fields.removeWhere(
           (field) =>
               field.key == 'signature_bytes' ||
-              field.key == 'signature_file_name',
+              field.key == 'signature_file_name' ||
+              field.key == 'signature_file_path',
         );
         await dio.post(
           '/driver/completion-proof',
@@ -257,6 +264,34 @@ class SyncService {
         );
         break;
     }
+  }
+
+  static Future<List<int>?> _queuedFileBytes(PendingAction action) async {
+    if (action.filePath != null && action.filePath!.isNotEmpty) {
+      return OfflineFileStore.instance.readBytes(action.filePath!);
+    }
+    if (action.fileBytes == null &&
+        (action.actionType == 'document' ||
+            action.actionType == 'completion_proof')) {
+      throw const OfflineFileMissingException(
+        'Queued upload file is no longer available. Please upload it again.',
+      );
+    }
+    return action.fileBytes;
+  }
+
+  static Future<List<int>?> _queuedSignatureBytes(
+    Map<String, dynamic> payload,
+  ) async {
+    final path = payload['signature_file_path']?.toString();
+    if (path != null && path.isNotEmpty) {
+      return OfflineFileStore.instance.readBytes(path);
+    }
+    final bytes = payload['signature_bytes'];
+    if (bytes is List) {
+      return List<int>.from(bytes);
+    }
+    return null;
   }
 
   static String extractServerMessage(Object error) {

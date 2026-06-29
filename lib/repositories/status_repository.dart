@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../core/action_timestamp.dart';
+import '../core/delivery_status.dart';
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
 import '../services/connectivity_service.dart';
 import '../services/driver_service.dart';
+import '../services/offline_file_store.dart';
 
 class StatusUpdateResult {
   final bool synced;
@@ -32,8 +34,7 @@ class StatusRepository {
     double? longitude,
     String? actionTakenAt,
   }) async {
-    final effectiveActionTakenAt =
-        actionTakenAt ?? DateTime.now().toIso8601String();
+    final effectiveActionTakenAt = actionTakenAt ?? actionTimestampNow();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'status': status,
@@ -62,7 +63,7 @@ class StatusRepository {
         synced: false,
         pendingActionId: id,
         message:
-            'Status saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
+            '${deliveryStatusLabel(status)} saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
       );
     }
 
@@ -92,7 +93,7 @@ class StatusRepository {
           synced: false,
           pendingActionId: id,
           message:
-              'Status saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
+              '${deliveryStatusLabel(status)} saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
         );
       }
       rethrow;
@@ -105,8 +106,7 @@ class StatusRepository {
     required double longitude,
     String? actionTakenAt,
   }) async {
-    final effectiveActionTakenAt =
-        actionTakenAt ?? DateTime.now().toIso8601String();
+    final effectiveActionTakenAt = actionTakenAt ?? actionTimestampNow();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'latitude': latitude,
@@ -122,9 +122,10 @@ class StatusRepository {
         assignmentId: assignmentId,
         actionTakenAt: effectiveActionTakenAt,
       );
-      return const StatusUpdateResult(
+      return StatusUpdateResult(
         synced: false,
-        message: 'Tracking saved offline.',
+        message:
+            'Tracking saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
       );
     }
 
@@ -144,9 +145,10 @@ class StatusRepository {
           assignmentId: assignmentId,
           actionTakenAt: effectiveActionTakenAt,
         );
-        return const StatusUpdateResult(
+        return StatusUpdateResult(
           synced: false,
-          message: 'Tracking saved offline.',
+          message:
+              'Tracking saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
         );
       }
       rethrow;
@@ -158,7 +160,7 @@ class StatusRepository {
     required String delayReason,
     String? notes,
   }) async {
-    final actionTakenAt = DateTime.now().toIso8601String();
+    final actionTakenAt = actionTimestampNow();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'delay_reason': delayReason,
@@ -176,7 +178,8 @@ class StatusRepository {
       return StatusUpdateResult(
         synced: false,
         pendingActionId: id,
-        message: 'Delay report saved offline.',
+        message:
+            'Delay report saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.',
       );
     }
 
@@ -196,9 +199,10 @@ class StatusRepository {
           assignmentId: assignmentId,
           actionTakenAt: actionTakenAt,
         );
-        return const StatusUpdateResult(
+        return StatusUpdateResult(
           synced: false,
-          message: 'Delay report saved offline.',
+          message:
+              'Delay report saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.',
         );
       }
       rethrow;
@@ -217,7 +221,7 @@ class StatusRepository {
     String? signatureFileName,
     List<int>? signatureBytes,
   }) async {
-    final actionTakenAt = DateTime.now().toIso8601String();
+    final actionTakenAt = actionTimestampNow();
 
     final completionPayload = <String, dynamic>{
       'assignment_id': assignmentId,
@@ -238,7 +242,6 @@ class StatusRepository {
     }
     if (signatureFileName != null && signatureBytes != null) {
       completionPayload['signature_file_name'] = signatureFileName;
-      completionPayload['signature_bytes'] = signatureBytes;
     }
 
     final statusPayload = <String, dynamic>{
@@ -247,14 +250,26 @@ class StatusRepository {
       ...actionTimestampFields(actionTakenAt),
     };
 
-    Future<int> queueCompletionProof() => _actionStore.addPendingAction(
-      actionType: 'completion_proof',
-      payload: completionPayload,
-      fileBytes: proofBytes,
-      fileName: proofFileName,
-      assignmentId: assignmentId,
-      actionTakenAt: actionTakenAt,
-    );
+    Future<int> queueCompletionProof() async {
+      final queuedPayload = Map<String, dynamic>.from(completionPayload);
+      if (signatureFileName != null && signatureBytes != null) {
+        queuedPayload['signature_file_path'] = await OfflineFileStore.instance
+            .saveBytes(
+              actionType: 'completion_signature',
+              fileName: signatureFileName,
+              bytes: signatureBytes,
+            );
+        queuedPayload['signature_file_size'] = signatureBytes.length;
+      }
+      return _actionStore.addPendingAction(
+        actionType: 'completion_proof',
+        payload: queuedPayload,
+        fileBytes: proofBytes,
+        fileName: proofFileName,
+        assignmentId: assignmentId,
+        actionTakenAt: actionTakenAt,
+      );
+    }
 
     Future<int> queueStatusUpdate() => _actionStore.addPendingAction(
       actionType: 'status_update',

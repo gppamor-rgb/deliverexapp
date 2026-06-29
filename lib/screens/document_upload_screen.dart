@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
+import '../core/action_timestamp.dart';
 import '../core/app_colors.dart';
 import '../core/backend_error_messages.dart';
 import '../core/delivery_status.dart';
@@ -14,6 +18,7 @@ import '../database/action_store.dart';
 import '../models/driver_assignment.dart';
 import '../repositories/assignment_repository.dart';
 import '../services/driver_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/driver/driver_card.dart';
 import '../widgets/driver/driver_empty_state.dart';
 import '../widgets/driver/driver_primary_button.dart';
@@ -94,6 +99,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   final _driverService = DriverService();
   final _assignmentRepo = AssignmentRepository();
   final _actionStore = ActionStore();
+  final _syncService = SyncService.instance;
   final _notesController = TextEditingController();
   late Future<List<DriverAssignment>> _future;
   DriverAssignment? _selectedAssignment;
@@ -103,6 +109,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   String? _message;
   double? _uploadProgress;
   var _pendingUploadCount = 0;
+  String? _pendingUploadError;
+  StreamSubscription<SyncStatus>? _syncSub;
 
   static const _maxUploadBytes = 10 * 1024 * 1024;
 
@@ -111,20 +119,38 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     super.initState();
     _future = _loadAssignments();
     _loadPendingCount();
+    _syncSub = _syncService.syncStream.listen(_onSyncStatusChanged);
+  }
+
+  void _onSyncStatusChanged(SyncStatus status) {
+    if (!mounted) return;
+    if (status is SyncCompleted) {
+      _loadPendingCount();
+      if (_isOfflineNotice(_message)) {
+        setState(() => _message = null);
+      }
+    } else if (status is SyncError) {
+      _loadPendingCount();
+    }
   }
 
   Future<void> _loadPendingCount() async {
     final pending = await _actionStore.getPendingActions();
+    final latestUploadError = await _actionStore.getLatestError(
+      actionType: 'document',
+    );
     if (!mounted) return;
     setState(() {
       _pendingUploadCount = pending
           .where((a) => a.actionType == 'document')
           .length;
+      _pendingUploadError = latestUploadError;
     });
   }
 
   @override
   void dispose() {
+    _syncSub?.cancel();
     _notesController.dispose();
     super.dispose();
   }
@@ -212,7 +238,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       _message = 'Preparing upload...';
     });
 
-    final actionTakenAt = DateTime.now().toIso8601String();
+    final actionTakenAt = actionTimestampNow();
 
     try {
       if (kDebugMode) {
@@ -257,8 +283,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           'assignment_id': assignment.id,
           'type': normalizeDocumentType(_type),
           'document_type': normalizeDocumentType(_type),
-          'action_timestamp': actionTakenAt,
-          'action_taken_at': actionTakenAt,
+          ...actionTimestampFields(actionTakenAt),
         };
         final notes = _notesController.text.trim();
         if (notes.isNotEmpty) {
@@ -280,7 +305,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           _uploadProgress = null;
           _notesController.clear();
           _message =
-              'Document saved offline. Will upload when connection is restored.';
+              'Document saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.';
         });
       } else {
         if (kDebugMode) {
@@ -370,7 +395,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            '$_pendingUploadCount file(s) pending upload — will sync when connected',
+                            _pendingUploadError == null
+                                ? '$_pendingUploadCount file(s) pending upload — will sync when connected'
+                                : '$_pendingUploadCount file(s) pending upload — last error: $_pendingUploadError',
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -705,8 +732,22 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   Color _messageColor(String message) {
     if (_submitting) return AppColors.accent;
     if (message.contains('successfully')) return AppColors.success;
-    if (message.contains('saved offline')) return AppColors.warning;
+    if (_isOfflineNotice(message)) return AppColors.warning;
     return AppColors.danger;
+  }
+
+  bool _isOfflineNotice(String? message) {
+    if (message == null) return false;
+    final normalized = message.toLowerCase();
+    return normalized.contains('saved offline') ||
+        normalized.contains('will sync when connection is restored') ||
+        normalized.contains('will upload when connection is restored');
+  }
+
+  String _formatActionTime(String actionTakenAt) {
+    final parsed = DateTime.tryParse(actionTakenAt);
+    if (parsed == null) return actionTakenAt;
+    return DateFormat('h:mm a').format(parsed.toLocal());
   }
 
   static String _normalizedImageFileName(String name) {

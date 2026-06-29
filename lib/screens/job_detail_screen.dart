@@ -5,8 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/action_timestamp.dart';
 import '../core/app_colors.dart';
 import '../core/backend_error_messages.dart';
 import '../core/delivery_status.dart';
@@ -99,6 +101,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         _isSyncing = false;
         _hasError = false;
         _syncError = '';
+        if (status is SyncCompleted && _isOfflineNotice(_message)) {
+          _message = null;
+        }
       });
       if (status is SyncCompleted) {
         _refresh();
@@ -164,7 +169,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     });
 
     try {
-      final actionTakenAt = DateTime.now().toIso8601String();
+      final actionTakenAt = actionTimestampNow();
       final position = _statusRequiresLocation(nextStatus)
           ? await _capturePosition()
           : null;
@@ -472,6 +477,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
+  bool _isOfflineNotice(String? message) {
+    if (message == null) return false;
+    final normalized = message.toLowerCase();
+    return normalized.contains('saved offline') ||
+        normalized.contains('will sync when connection is restored') ||
+        normalized.contains('will sync when connected') ||
+        normalized.contains('for later sync');
+  }
+
+  String _formatActionTime(String actionTakenAt) {
+    final parsed = DateTime.tryParse(actionTakenAt);
+    if (parsed == null) return actionTakenAt;
+    return DateFormat('h:mm a').format(parsed.toLocal());
+  }
+
   Future<Position> _capturePosition() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (kDebugMode) {
@@ -698,6 +718,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                                   _message!.contains('success') ||
                                       _message!.contains('sent')
                                   ? AppColors.success
+                                  : _isOfflineNotice(_message)
+                                  ? AppColors.warning
                                   : AppColors.danger,
                               fontWeight: FontWeight.w800,
                             ),
@@ -764,13 +786,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               required fileName,
               required bytes,
             }) async {
-              final actionTakenAt = DateTime.now().toIso8601String();
+              final actionTakenAt = actionTimestampNow();
+              final offlineMessage =
+                  'Issue saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.';
               if (!_connectivity.isOnline) {
                 final payload = <String, dynamic>{
                   'assignment_id': assignment.id,
                   'issue_type': issueType,
-                  'action_timestamp': actionTakenAt,
-                  'action_taken_at': actionTakenAt,
+                  ...actionTimestampFields(actionTakenAt),
                 };
                 if (notes.trim().isNotEmpty) payload['notes'] = notes.trim();
                 await _actionStore.addPendingAction(
@@ -782,26 +805,22 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   actionTakenAt: actionTakenAt,
                 );
                 if (mounted) {
-                  setState(
-                    () => _message = 'Issue saved offline for later sync.',
-                  );
+                  setState(() => _message = offlineMessage);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.cloud_off_rounded,
                             color: Colors.white,
                             size: 20,
                           ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text('Issue saved offline for later sync.'),
-                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(offlineMessage)),
                         ],
                       ),
                       backgroundColor: AppColors.warning,
-                      duration: Duration(seconds: 3),
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 }
@@ -824,8 +843,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   final payload = <String, dynamic>{
                     'assignment_id': assignment.id,
                     'issue_type': issueType,
-                    'action_timestamp': actionTakenAt,
-                    'action_taken_at': actionTakenAt,
+                    ...actionTimestampFields(actionTakenAt),
                   };
                   if (notes.trim().isNotEmpty) payload['notes'] = notes.trim();
                   await _actionStore.addPendingAction(
@@ -837,28 +855,22 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     actionTakenAt: actionTakenAt,
                   );
                   if (mounted) {
-                    setState(
-                      () => _message = 'Issue saved offline for later sync.',
-                    );
+                    setState(() => _message = offlineMessage);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.cloud_off_rounded,
                               color: Colors.white,
                               size: 20,
                             ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Issue saved offline for later sync.',
-                              ),
-                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(offlineMessage)),
                           ],
                         ),
                         backgroundColor: AppColors.warning,
-                        duration: Duration(seconds: 3),
+                        duration: const Duration(seconds: 3),
                       ),
                     );
                   }
@@ -887,26 +899,28 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             setState(
               () => _message = result.synced
                   ? 'Delay report submitted.'
-                  : 'Delay report saved offline.',
+                  : (result.message ?? 'Delay report saved offline.'),
             );
             if (!result.synced) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.cloud_off_rounded,
                         color: Colors.white,
                         size: 20,
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Text('Delay saved offline for later sync.'),
+                        child: Text(
+                          result.message ?? 'Delay report saved offline.',
+                        ),
                       ),
                     ],
                   ),
                   backgroundColor: AppColors.warning,
-                  duration: Duration(seconds: 3),
+                  duration: const Duration(seconds: 3),
                 ),
               );
             }
