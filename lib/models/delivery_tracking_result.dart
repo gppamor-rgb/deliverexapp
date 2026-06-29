@@ -152,6 +152,15 @@ class DeliveryTrackingResult {
   }
 
   TrackingLocation? get lastLocation {
+    final approximateLocation = _trackingLocationFromMap(
+      _map(_source['approximate_location']).isNotEmpty
+          ? _map(_source['approximate_location'])
+          : _map(raw['approximate_location']),
+    );
+    if (approximateLocation != null) {
+      return approximateLocation;
+    }
+
     final logLocation = _trackingLocationFromMap(latestTracking);
     if (logLocation != null) {
       return logLocation;
@@ -303,6 +312,7 @@ bool _looksLikeTrackingPayload(Map<String, dynamic> value) {
   return value.containsKey('job_order') ||
       value.containsKey('tracking_logs') ||
       value.containsKey('status_logs') ||
+      value.containsKey('approximate_location') ||
       value.containsKey('tracking_code') ||
       value.containsKey('status');
 }

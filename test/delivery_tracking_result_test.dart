@@ -2,6 +2,34 @@ import 'package:deliverex/models/delivery_tracking_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('reads last location from approximate location lat lng', () {
+    final result = DeliveryTrackingResult.fromJson({
+      'tracking_code': 'T123',
+      'status': 'en_route_to_destination',
+      'approximate_location': {'lat': 14.6, 'lng': 120.98},
+    });
+
+    expect(result.lastLocation?.latitude, 14.6);
+    expect(result.lastLocation?.longitude, 120.98);
+    expect(result.lastLocation?.displayText, '14.600000, 120.980000');
+    expect(result.lastLocation?.hasCoordinates, isTrue);
+  });
+
+  test('reads last location from approximate location latitude longitude', () {
+    final result = DeliveryTrackingResult.fromJson({
+      'tracking_code': 'T123',
+      'status': 'en_route_to_destination',
+      'approximate_location': {
+        'latitude': '14.604079',
+        'longitude': '120.988591',
+      },
+    });
+
+    expect(result.lastLocation?.latitude, 14.604079);
+    expect(result.lastLocation?.longitude, 120.988591);
+    expect(result.lastLocation?.displayText, '14.604079, 120.988591');
+  });
+
   test('reads latest location from tracking logs', () {
     final result = DeliveryTrackingResult.fromJson({
       'tracking_code': 'T123',

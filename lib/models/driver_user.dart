@@ -5,6 +5,7 @@ class DriverUser {
     required this.email,
     required this.roleName,
     this.mustChangePassword = false,
+    this.companyRole = '',
   });
 
   final String id;
@@ -12,6 +13,7 @@ class DriverUser {
   final String email;
   final String roleName;
   final bool mustChangePassword;
+  final String companyRole;
 
   bool get isDriver {
     final normalized = roleName.toLowerCase().trim();
@@ -20,6 +22,8 @@ class DriverUser {
     }
     return normalized.contains('driver') || normalized.contains('delivery');
   }
+
+  bool get isCompanyOwner => companyRole.toLowerCase().trim() == 'owner';
 
   factory DriverUser.fromJson(Map<String, dynamic> json) {
     final role = json['role'];
@@ -52,6 +56,12 @@ class DriverUser {
       email: json['email']?.toString() ?? '',
       roleName: roleName,
       mustChangePassword: _boolValue(json['must_change_password']),
+      companyRole: _firstString([
+        json['company_role'],
+        json['customer_company_role'],
+        json['portal_role'],
+        json['company'] is Map ? (json['company'] as Map)['role'] : null,
+      ]),
     );
   }
 }

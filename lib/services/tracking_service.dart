@@ -16,12 +16,12 @@ class TrackingService {
     }
 
     final attempts = <_LookupAttempt>[
+      _LookupAttempt('/customer/track/$code'),
       _LookupAttempt('/tracking/$code'),
       _LookupAttempt('/tracking', {'tracking_code': code}),
       _LookupAttempt('/tracking', {'tracking_id': code}),
       _LookupAttempt('/tracking', {'code': code}),
       _LookupAttempt('/customer/tracking/$code'),
-      _LookupAttempt('/customer/track/$code'),
       _LookupAttempt('/customer/tracking', {'tracking_code': code}),
       _LookupAttempt('/customer/tracking', {'tracking_id': code}),
       _LookupAttempt('/public/tracking/$code'),

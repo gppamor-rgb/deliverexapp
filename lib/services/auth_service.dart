@@ -232,7 +232,13 @@ class AuthService {
         role: MobileSessionRole.driver,
         user: _userSnapshotFromDriverUser(user),
       );
-      await _dbHelper.setSetting('current_driver_id', user.id);
+      try {
+        await _dbHelper.setSetting('current_driver_id', user.id);
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint('Deliverex password change cache update failed: $error');
+        }
+      }
       return user;
     } on DioException catch (error) {
       throw AuthException(_messageFromDio(error));
@@ -405,6 +411,7 @@ class AuthService {
       'email': user.email,
       'role_name': user.roleName,
       'must_change_password': user.mustChangePassword,
+      'company_role': user.companyRole,
     };
   }
 

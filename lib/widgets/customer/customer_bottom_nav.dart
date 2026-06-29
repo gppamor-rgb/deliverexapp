@@ -13,11 +13,11 @@ class CustomerBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const items = [
-    (Icons.home_rounded, 'Home'),
+    (Icons.dashboard_rounded, 'Dashboard'),
     (Icons.search_rounded, 'Track'),
-    (Icons.inventory_2_rounded, 'My Deliveries'),
-    (Icons.support_agent_rounded, 'Services'),
-    (Icons.person_rounded, 'Profile'),
+    (Icons.inventory_2_rounded, 'Deliveries'),
+    (Icons.history_rounded, 'History'),
+    (Icons.support_agent_rounded, 'Support'),
   ];
 
   @override

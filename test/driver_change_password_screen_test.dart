@@ -55,6 +55,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.text('Save password'));
     await tester.tap(find.text('Save password'));
     await tester.pump();
 
@@ -64,6 +65,7 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField).at(1), 'short');
     await tester.enterText(find.byType(TextFormField).at(2), 'different123');
+    await tester.ensureVisible(find.text('Save password'));
     await tester.tap(find.text('Save password'));
     await tester.pump();
 
@@ -93,6 +95,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(0), 'temporary123');
     await tester.enterText(find.byType(TextFormField).at(1), 'newpass123');
     await tester.enterText(find.byType(TextFormField).at(2), 'newpass123');
+    await tester.ensureVisible(find.text('Save password'));
     await tester.tap(find.text('Save password'));
     await tester.pumpAndSettle();
 
@@ -115,6 +118,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(0), 'wrongpass');
     await tester.enterText(find.byType(TextFormField).at(1), 'newpass123');
     await tester.enterText(find.byType(TextFormField).at(2), 'newpass123');
+    await tester.ensureVisible(find.text('Save password'));
     await tester.tap(find.text('Save password'));
     await tester.pump();
     await tester.pump();

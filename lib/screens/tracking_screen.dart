@@ -38,6 +38,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
     super.initState();
     _trackingService = widget.trackingService ?? TrackingService();
     _controller = TextEditingController(text: widget.prefillTracking ?? '');
+    if (_controller.text.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _lookup();
+        }
+      });
+    }
   }
 
   @override
