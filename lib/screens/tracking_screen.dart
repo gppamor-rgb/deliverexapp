@@ -221,7 +221,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 title: 'Delivery status',
                 message:
                     'Enter a tracking ID to view the current status, ETA window, route, and latest location.',
-                icon: Icons.local_shipping_outlined,
+                icon: Icons.route_outlined,
               )
             else ...[
               _StatusSummaryCard(result: _result!),
@@ -341,7 +341,7 @@ class _StatusSummaryCard extends StatelessWidget {
 
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
-    ('en_route_to_pickup', 'En Route to Pickup', Icons.local_shipping_rounded),
+    ('en_route_to_pickup', 'En Route to Pickup', Icons.near_me_rounded),
     ('arrived_at_pickup', 'Arrived at Pickup', Icons.warehouse_rounded),
     ('en_route_to_destination', 'En Route to Destination', Icons.route_rounded),
     ('arrived', 'Arrived', Icons.location_on_rounded),

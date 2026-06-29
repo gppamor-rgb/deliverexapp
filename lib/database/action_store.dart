@@ -78,9 +78,12 @@ class ActionStore {
     String? fileName,
     String? filePath,
     String? assignmentId,
+    String? actionTakenAt,
   }) async {
     final db = await _db.database;
     final now = DateTime.now().toIso8601String();
+    final effectiveActionTakenAt =
+        actionTakenAt ?? payload['action_taken_at']?.toString() ?? now;
     final driverId = await _db.getSetting('current_driver_id') ?? '';
 
     return db.insert('offline_actions', {
@@ -90,7 +93,7 @@ class ActionStore {
       'file_bytes': fileBytes,
       'file_name': fileName,
       'assignment_id': assignmentId,
-      'action_taken_at': now,
+      'action_taken_at': effectiveActionTakenAt,
       'status': 'pending',
       'retry_count': 0,
       'created_at': now,

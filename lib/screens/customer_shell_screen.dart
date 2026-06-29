@@ -148,14 +148,11 @@ class _CustomerHeader extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.local_shipping_rounded,
-              color: Colors.white,
-              size: 24,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              'assets/icons/brand_logo.png',
+              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(width: 12),

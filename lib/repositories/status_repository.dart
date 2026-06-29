@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import '../core/network_errors.dart';
 import '../database/action_store.dart';
@@ -28,11 +29,14 @@ class StatusRepository {
     required String status,
     double? latitude,
     double? longitude,
+    String? actionTakenAt,
   }) async {
+    final effectiveActionTakenAt =
+        actionTakenAt ?? DateTime.now().toIso8601String();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'status': status,
-      'action_taken_at': DateTime.now().toIso8601String(),
+      'action_taken_at': effectiveActionTakenAt,
     };
     if (latitude != null) {
       payload['latitude'] = latitude;
@@ -46,6 +50,7 @@ class StatusRepository {
         actionType: 'status_update',
         payload: payload,
         assignmentId: assignmentId,
+        actionTakenAt: effectiveActionTakenAt,
       );
       if (kDebugMode) {
         debugPrint(
@@ -55,7 +60,8 @@ class StatusRepository {
       return StatusUpdateResult(
         synced: false,
         pendingActionId: id,
-        message: 'Status saved offline. Will sync when connection is restored.',
+        message:
+            'Status saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
       );
     }
 
@@ -65,6 +71,7 @@ class StatusRepository {
         status: status,
         latitude: latitude,
         longitude: longitude,
+        actionTakenAt: effectiveActionTakenAt,
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
@@ -73,6 +80,7 @@ class StatusRepository {
           actionType: 'status_update',
           payload: payload,
           assignmentId: assignmentId,
+          actionTakenAt: effectiveActionTakenAt,
         );
         if (kDebugMode) {
           debugPrint(
@@ -83,7 +91,7 @@ class StatusRepository {
           synced: false,
           pendingActionId: id,
           message:
-              'Status saved offline. Will sync when connection is restored.',
+              'Status saved offline at ${_formatActionTime(effectiveActionTakenAt)}. Will sync when connection is restored.',
         );
       }
       rethrow;
@@ -94,12 +102,16 @@ class StatusRepository {
     required String assignmentId,
     required double latitude,
     required double longitude,
+    String? actionTakenAt,
   }) async {
+    final effectiveActionTakenAt =
+        actionTakenAt ?? DateTime.now().toIso8601String();
     final payload = <String, dynamic>{
       'assignment_id': assignmentId,
       'latitude': latitude,
       'longitude': longitude,
-      'action_taken_at': DateTime.now().toIso8601String(),
+      'action_taken_at': effectiveActionTakenAt,
+      'captured_at': effectiveActionTakenAt,
     };
 
     if (!_connectivity.isOnline) {
@@ -107,6 +119,7 @@ class StatusRepository {
         actionType: 'tracking',
         payload: payload,
         assignmentId: assignmentId,
+        actionTakenAt: effectiveActionTakenAt,
       );
       return const StatusUpdateResult(
         synced: false,
@@ -119,6 +132,7 @@ class StatusRepository {
         assignmentId: assignmentId,
         latitude: latitude,
         longitude: longitude,
+        capturedAt: effectiveActionTakenAt,
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
@@ -127,6 +141,7 @@ class StatusRepository {
           actionType: 'tracking',
           payload: payload,
           assignmentId: assignmentId,
+          actionTakenAt: effectiveActionTakenAt,
         );
         return const StatusUpdateResult(
           synced: false,
@@ -233,21 +248,23 @@ class StatusRepository {
       fileBytes: proofBytes,
       fileName: proofFileName,
       assignmentId: assignmentId,
+      actionTakenAt: actionTakenAt,
     );
 
     Future<int> queueStatusUpdate() => _actionStore.addPendingAction(
       actionType: 'status_update',
       payload: statusPayload,
       assignmentId: assignmentId,
+      actionTakenAt: actionTakenAt,
     );
 
     if (!_connectivity.isOnline) {
       await queueCompletionProof();
       await queueStatusUpdate();
-      return const StatusUpdateResult(
+      return StatusUpdateResult(
         synced: false,
         message:
-            'Completion saved offline. Will sync when connection is restored.',
+            'Completion saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.',
       );
     }
 
@@ -267,19 +284,26 @@ class StatusRepository {
       await _driverService.postStatus(
         assignmentId: assignmentId,
         status: 'completed',
+        actionTakenAt: actionTakenAt,
       );
       return const StatusUpdateResult(synced: true);
     } on DioException catch (e) {
       if (isNetworkTransportError(e)) {
         await queueCompletionProof();
         await queueStatusUpdate();
-        return const StatusUpdateResult(
+        return StatusUpdateResult(
           synced: false,
           message:
-              'Completion saved offline. Will sync when connection is restored.',
+              'Completion saved offline at ${_formatActionTime(actionTakenAt)}. Will sync when connection is restored.',
         );
       }
       rethrow;
     }
+  }
+
+  String _formatActionTime(String actionTakenAt) {
+    final parsed = DateTime.tryParse(actionTakenAt);
+    if (parsed == null) return actionTakenAt;
+    return DateFormat('h:mm a').format(parsed.toLocal());
   }
 }

@@ -40,13 +40,12 @@ class DriverAppHeader extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.local_shipping_rounded,
-                  color: Colors.white,
-                  size: 24,
+                clipBehavior: Clip.antiAlias,
+                child: Image.asset(
+                  'assets/icons/brand_logo.png',
+                  fit: BoxFit.cover,
                 ),
               ),
               Positioned(

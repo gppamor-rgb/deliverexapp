@@ -10,6 +10,39 @@ Map<String, dynamic> driverProfileUpdateBody({required String phone}) {
   return {'phone': phone.trim()};
 }
 
+Map<String, dynamic> driverStatusUpdateBody({
+  required String assignmentId,
+  required String status,
+  double? latitude,
+  double? longitude,
+  String? actionTakenAt,
+}) {
+  return {
+    'assignment_id': assignmentId,
+    'status': status,
+    if (actionTakenAt != null && actionTakenAt.isNotEmpty)
+      'action_taken_at': actionTakenAt,
+    // ignore: use_null_aware_elements
+    if (latitude != null) 'latitude': latitude,
+    // ignore: use_null_aware_elements
+    if (longitude != null) 'longitude': longitude,
+  };
+}
+
+Map<String, dynamic> driverTrackingUpdateBody({
+  required String assignmentId,
+  required double latitude,
+  required double longitude,
+  String? capturedAt,
+}) {
+  return {
+    'assignment_id': assignmentId,
+    'latitude': latitude,
+    'longitude': longitude,
+    if (capturedAt != null && capturedAt.isNotEmpty) 'captured_at': capturedAt,
+  };
+}
+
 class DriverService {
   DriverService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
@@ -63,17 +96,17 @@ class DriverService {
     required String status,
     double? latitude,
     double? longitude,
+    String? actionTakenAt,
   }) async {
     return _apiClient.dio.post<dynamic>(
       '/driver/status',
-      data: {
-        'assignment_id': assignmentId,
-        'status': status,
-        // ignore: use_null_aware_elements
-        if (latitude != null) 'latitude': latitude,
-        // ignore: use_null_aware_elements
-        if (longitude != null) 'longitude': longitude,
-      },
+      data: driverStatusUpdateBody(
+        assignmentId: assignmentId,
+        status: status,
+        latitude: latitude,
+        longitude: longitude,
+        actionTakenAt: actionTakenAt,
+      ),
       options: await _authOptions(),
     );
   }
@@ -82,14 +115,16 @@ class DriverService {
     required String assignmentId,
     required double latitude,
     required double longitude,
+    String? capturedAt,
   }) async {
     await _apiClient.dio.post<dynamic>(
       '/driver/tracking',
-      data: {
-        'assignment_id': assignmentId,
-        'latitude': latitude,
-        'longitude': longitude,
-      },
+      data: driverTrackingUpdateBody(
+        assignmentId: assignmentId,
+        latitude: latitude,
+        longitude: longitude,
+        capturedAt: capturedAt,
+      ),
       options: await _authOptions(),
     );
   }

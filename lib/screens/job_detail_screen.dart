@@ -163,6 +163,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     });
 
     try {
+      final actionTakenAt = DateTime.now().toIso8601String();
       final position = _statusRequiresLocation(nextStatus)
           ? await _capturePosition()
           : null;
@@ -187,6 +188,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         status: nextStatus,
         latitude: position?.latitude,
         longitude: position?.longitude,
+        actionTakenAt: actionTakenAt,
       );
 
       if (kDebugMode) {
@@ -196,7 +198,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       }
 
       if (position != null) {
-        await _tryPostTracking(assignment.id, position);
+        await _tryPostTracking(assignment.id, position, actionTakenAt);
       }
 
       final refreshedFuture = _load();
@@ -434,12 +436,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   bool _statusRequiresLocation(String status) =>
       deliveryStatusRequiresLocation(status);
 
-  Future<void> _tryPostTracking(String assignmentId, Position position) async {
+  Future<void> _tryPostTracking(
+    String assignmentId,
+    Position position,
+    String actionTakenAt,
+  ) async {
     try {
       await _statusRepository.postTracking(
         assignmentId: assignmentId,
         latitude: position.latitude,
         longitude: position.longitude,
+        actionTakenAt: actionTakenAt,
       );
       if (kDebugMode) {
         debugPrint(
@@ -1346,7 +1353,7 @@ class _StatusTrackerCard extends StatelessWidget {
 
   static const _steps = [
     ('assigned', 'Assigned', Icons.check_rounded),
-    ('en_route_to_pickup', 'En Route to Pickup', Icons.local_shipping_rounded),
+    ('en_route_to_pickup', 'En Route to Pickup', Icons.near_me_rounded),
     ('arrived_at_pickup', 'Arrived at Pickup', Icons.warehouse_rounded),
     ('en_route_to_destination', 'En Route to Destination', Icons.route_rounded),
     ('arrived', 'Arrived', Icons.location_on_rounded),
@@ -1696,7 +1703,7 @@ class _VehicleCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionTitle(
-            icon: Icons.local_shipping_outlined,
+            icon: Icons.directions_car_filled_outlined,
             label: 'VEHICLE',
           ),
           const SizedBox(height: 12),

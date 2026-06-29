@@ -105,6 +105,9 @@ class SyncService {
   }) async {
     final enrichedPayload = Map<String, dynamic>.from(action.payload);
     enrichedPayload['action_taken_at'] = action.actionTakenAt;
+    if (action.actionType == 'tracking') {
+      enrichedPayload['captured_at'] ??= action.actionTakenAt;
+    }
     enrichedPayload['sync_id'] = action.id?.toString();
 
     try {

@@ -179,7 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.local_shipping_outlined,
+                      Icons.directions_car_filled_outlined,
                       color: AppColors.primary,
                     ),
                     const SizedBox(width: 14),

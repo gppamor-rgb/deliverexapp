@@ -64,7 +64,7 @@ class DriverHeroCard extends StatelessWidget {
               DriverSummaryPill(
                 value: '$today',
                 label: 'Today',
-                icon: Icons.local_shipping_outlined,
+                icon: Icons.route_outlined,
               ),
               SizedBox(width: 10),
               DriverSummaryPill(

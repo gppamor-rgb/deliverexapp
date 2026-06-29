@@ -73,7 +73,7 @@ class CustomerServicesScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const _ServiceCard(
-            icon: Icons.local_shipping_rounded,
+            icon: Icons.route_rounded,
             title: 'Delivery and Transport',
             description:
                 'Coordination and execution of deliveries using company drivers and vehicles.',

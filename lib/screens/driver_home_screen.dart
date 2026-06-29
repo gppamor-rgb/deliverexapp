@@ -431,7 +431,7 @@ class _VehicleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
-              Icons.local_shipping_outlined,
+              Icons.directions_car_filled_outlined,
               color: AppColors.primary,
             ),
           ),
