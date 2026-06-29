@@ -8,22 +8,20 @@ class AppTransitions {
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.08),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            ),
-          ),
+          position:
+              Tween<Offset>(
+                begin: const Offset(0, 0.08),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                ),
+              ),
           child: FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOut,
-              ),
+              CurvedAnimation(parent: animation, curve: Curves.easeOut),
             ),
             child: child,
           ),
@@ -38,18 +36,13 @@ class AppTransitions {
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOut,
-            ),
-          ),
+          opacity: Tween<double>(
+            begin: 0,
+            end: 1,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.97, end: 1).animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              ),
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
             ),
             child: child,
           ),

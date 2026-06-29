@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/app_colors.dart';
 import '../core/backend_error_messages.dart';
+import '../core/delivery_status.dart';
 import '../core/document_upload_guidance.dart';
 import '../core/document_type_mapper.dart';
 import '../core/network_errors.dart';
@@ -29,6 +30,57 @@ class DocumentUploadScreen extends StatefulWidget {
 bool isDocumentUploadSelectableAssignment(DriverAssignment assignment) {
   return !assignment.isCancelled &&
       (assignment.isActive || assignment.isPending || assignment.isCompleted);
+}
+
+const documentUploadSuccessReviewMessage = 'Document submitted successfully.';
+
+bool isOcrReviewDocumentType(String type) {
+  return switch (normalizeDocumentType(type)) {
+    'receipt' || 'invoice' || 'job_order' || 'other' => true,
+    _ => false,
+  };
+}
+
+bool isStatusRestrictedDocumentType(String type) {
+  return normalizeDocumentType(type) == 'receipt' ||
+      type == 'proof_of_delivery';
+}
+
+bool canUploadOcrReviewDocumentForStatus(String status) {
+  return switch (canonicalDeliveryStatus(status)) {
+    deliveryStatusArrived || deliveryStatusCompleted => true,
+    _ => false,
+  };
+}
+
+String? documentUploadPreflightMessage({
+  required String type,
+  required String status,
+}) {
+  if (!isStatusRestrictedDocumentType(type)) {
+    return null;
+  }
+  if (canUploadOcrReviewDocumentForStatus(status)) {
+    return null;
+  }
+  final currentStatus = deliveryStatusLabel(status);
+  return 'Document uploads are only available when delivery status is Arrived or Completed. Current status: $currentStatus.';
+}
+
+String documentUploadSuccessMessage(dynamic responseData) {
+  return documentUploadSuccessReviewMessage;
+}
+
+String? documentUploadTypeHelp(String type, String? status) {
+  if (type == 'proof_of_delivery') {
+    return 'Proof of Delivery is uploaded from the Complete Delivery flow.';
+  }
+  if (isStatusRestrictedDocumentType(type) &&
+      status != null &&
+      !canUploadOcrReviewDocumentForStatus(status)) {
+    return 'Document uploads are available only when the delivery is Arrived or Completed.';
+  }
+  return 'This document will be available for website review after upload.';
 }
 
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
@@ -139,6 +191,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       );
       return;
     }
+    final preflightMessage = documentUploadPreflightMessage(
+      type: _type,
+      status: assignment.status,
+    );
+    if (preflightMessage != null) {
+      setState(() => _message = preflightMessage);
+      return;
+    }
     if (bytes.length > _maxUploadBytes) {
       setState(
         () =>
@@ -159,7 +219,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           'Deliverex document upload: ${file.name}, ${bytes.length} bytes',
         );
       }
-      await _driverService.uploadDocument(
+      final response = await _driverService.uploadDocument(
         assignmentId: assignment.id,
         type: normalizeDocumentType(_type),
         fileName: file.name,
@@ -187,7 +247,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         _file = null;
         _uploadProgress = null;
         _notesController.clear();
-        _message = 'Document uploaded successfully.';
+        _message = documentUploadSuccessMessage(response.data);
       });
     } on DioException catch (e) {
       if (isNetworkTransportError(e)) {
@@ -482,6 +542,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   ),
                 ),
               ),
+              if (documentUploadTypeHelp(_type, _selectedAssignment?.status)
+                  case final typeHelp?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    typeHelp,
+                    style: const TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
               const _SectionLabel('Notes (optional)'),
               TextField(

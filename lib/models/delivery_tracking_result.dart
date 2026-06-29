@@ -87,14 +87,14 @@ class DeliveryTrackingResult {
     _string(jobOrder['pickup_address']),
     _string(jobOrder['pickup_location']),
     _string(jobOrder['pickup_name']),
-  ]);
+  ]).ifBlank('—');
 
   String get dropoffAddress => _firstString([
     _string(_source['dropoff_address']),
     _string(jobOrder['dropoff_address']),
     _string(jobOrder['dropoff_location']),
     _string(jobOrder['dropoff_name']),
-  ]);
+  ]).ifBlank('—');
 
   String get schedule =>
       formatJobSchedule(jobOrder.isEmpty ? _source : jobOrder);
@@ -149,6 +149,17 @@ class DeliveryTrackingResult {
     final sorted = [...logs]
       ..sort((a, b) => _sortValue(b).compareTo(_sortValue(a)));
     return sorted.first;
+  }
+
+  TrackingLocation? get lastLocation {
+    final logLocation = _trackingLocationFromMap(latestTracking);
+    if (logLocation != null) {
+      return logLocation;
+    }
+
+    return _trackingLocationFromMap(_source) ??
+        _trackingLocationFromMap(raw) ??
+        _trackingLocationFromMap(jobOrder);
   }
 
   List<Map<String, dynamic>> get trackingLogs => _sortedLogs([
@@ -220,6 +231,32 @@ class DeliveryTrackingResult {
     jobOrder['dropoff'] is Map ? _map(jobOrder['dropoff'])['lng'] : null,
     jobOrder['dropoff'] is Map ? _map(jobOrder['dropoff'])['lon'] : null,
   ]);
+}
+
+class TrackingLocation {
+  const TrackingLocation({
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    required this.timestamp,
+  });
+
+  final String address;
+  final double? latitude;
+  final double? longitude;
+  final String? timestamp;
+
+  bool get hasCoordinates => latitude != null && longitude != null;
+
+  String get displayText {
+    if (address.isNotEmpty) {
+      return address;
+    }
+    if (hasCoordinates) {
+      return '${_formatCoordinate(latitude!)}, ${_formatCoordinate(longitude!)}';
+    }
+    return 'Last location unavailable';
+  }
 }
 
 dynamic _unwrap(dynamic json) {
@@ -318,3 +355,55 @@ double? _firstDouble(List<dynamic> values) {
 String _withFallback(String value, String fallback) {
   return value.isEmpty ? fallback : value;
 }
+
+TrackingLocation? _trackingLocationFromMap(Map<String, dynamic>? value) {
+  final map = value ?? const {};
+  if (map.isEmpty) {
+    return null;
+  }
+
+  final address = _firstString([
+    map['address'],
+    map['location'],
+    map['current_location'],
+    map['formatted_address'],
+    map['last_location'],
+    map['last_known_location'],
+  ]);
+  final latitude = _firstDouble([
+    map['latitude'],
+    map['lat'],
+    map['current_latitude'],
+    map['last_latitude'],
+    map['last_lat'],
+  ]);
+  final longitude = _firstDouble([
+    map['longitude'],
+    map['lng'],
+    map['lon'],
+    map['current_longitude'],
+    map['last_longitude'],
+    map['last_lng'],
+    map['last_lon'],
+  ]);
+  final timestamp = _firstString([
+    map['captured_at'],
+    map['created_at'],
+    map['updated_at'],
+    map['timestamp'],
+    map['time'],
+  ]);
+
+  if (address.isEmpty && latitude == null && longitude == null) {
+    return null;
+  }
+
+  return TrackingLocation(
+    address: address,
+    latitude: latitude,
+    longitude: longitude,
+    timestamp: timestamp.isEmpty ? null : formatDeliverexDateTime(timestamp),
+  );
+}
+
+String _formatCoordinate(double value) => value.toStringAsFixed(6);

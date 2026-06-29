@@ -33,4 +33,28 @@ void main() {
 
     expect(user.isDriver, isFalse);
   });
+
+  test('reads mandatory password change flag', () {
+    final user = DriverUser.fromJson({
+      'id': 12,
+      'name': 'New Driver',
+      'email': 'new@example.com',
+      'role_name': 'driver',
+      'must_change_password': true,
+    });
+
+    expect(user.mustChangePassword, isTrue);
+  });
+
+  test('reads numeric mandatory password change flag', () {
+    final user = DriverUser.fromJson({
+      'id': 13,
+      'name': 'New Driver',
+      'email': 'new2@example.com',
+      'role_name': 'driver',
+      'must_change_password': 1,
+    });
+
+    expect(user.mustChangePassword, isTrue);
+  });
 }

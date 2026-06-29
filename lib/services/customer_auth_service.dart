@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/customer_user.dart';
 import 'api_client.dart';
+import 'session_service.dart';
 
 class CustomerAuthResult {
   const CustomerAuthResult({required this.token, required this.user});
@@ -15,13 +15,12 @@ class CustomerAuthResult {
 }
 
 class CustomerAuthService {
-  CustomerAuthService({ApiClient? apiClient, FlutterSecureStorage? storage})
-    : _apiClient = apiClient ?? ApiClient(),
-      _storage = storage ?? const FlutterSecureStorage();
+  CustomerAuthService({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   static const tokenKey = 'deliverex_customer_token';
   final ApiClient _apiClient;
-  final FlutterSecureStorage _storage;
+  final _sessionService = SessionService.instance;
 
   Future<String> forgotPassword({required String email}) async {
     try {
@@ -93,7 +92,22 @@ class CustomerAuthService {
       final user = CustomerUser.fromJson(userJson);
 
       if (token.isNotEmpty) {
-        await _storage.write(key: tokenKey, value: token);
+        await _sessionService.saveSessionFromLoginResponse(
+          role: MobileSessionRole.customer,
+          data: data,
+          headers: response.headers,
+          accessToken: token,
+          userId: user.id,
+        );
+        await _sessionService.saveUserSnapshot(
+          role: MobileSessionRole.customer,
+          user: {
+            'id': user.id,
+            'name': user.fullName,
+            'email': user.email,
+            'role_name': user.role,
+          },
+        );
       }
 
       return CustomerAuthResult(token: token, user: user);
@@ -167,6 +181,10 @@ class CustomerAuthService {
     }
 
     final response = error.response;
+    if (response?.statusCode == 401 || response?.statusCode == 419) {
+      return SessionService.sessionExpiredMessage();
+    }
+
     if (response != null && response.data != null) {
       final data = response.data;
       if (data is Map) {

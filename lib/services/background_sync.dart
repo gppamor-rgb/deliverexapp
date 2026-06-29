@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../database/action_store.dart';
-import '../database/database_helper.dart';
 import 'api_client.dart';
+import 'session_service.dart';
 import 'sync_service.dart';
 
 const backgroundSyncTaskName = 'deliverex_background_sync';
@@ -16,8 +16,11 @@ void backgroundSyncCallback() {
     }
 
     try {
-      final dbHelper = DatabaseHelper.instance;
-      final token = await dbHelper.getSetting('deliverex_driver_token');
+      final dio = ApiClient().dio;
+      final token = await SessionService.instance.validAccessToken(
+        role: MobileSessionRole.driver,
+        dio: dio,
+      );
       if (token == null || token.isEmpty) {
         if (kDebugMode) {
           debugPrint('Deliverex background sync: no token found');
@@ -33,9 +36,6 @@ void backgroundSyncCallback() {
         }
         return true;
       }
-
-      final dio = ApiClient().dio;
-
       for (final action in pending) {
         try {
           await SyncService.executeActionStatic(
@@ -69,7 +69,9 @@ void backgroundSyncCallback() {
 
       if (kDebugMode) {
         final remaining = await actionStore.getPendingCount();
-        debugPrint('Deliverex background sync completed. Remaining: $remaining');
+        debugPrint(
+          'Deliverex background sync completed. Remaining: $remaining',
+        );
       }
 
       if (pending.isNotEmpty) {

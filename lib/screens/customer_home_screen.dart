@@ -12,87 +12,105 @@ class CustomerHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${user.name}!',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Welcome, ${user.name}!',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Here\'s an overview of your deliveries.',
+            style: TextStyle(color: AppColors.mutedText, fontSize: 15),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(
+                child: _StatCard(
+                  value: 0,
+                  label: 'ACTIVE',
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Here\'s an overview of your deliveries.',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 15,
+              const SizedBox(width: 8),
+              const Expanded(
+                child: _StatCard(
+                  value: 0,
+                  label: 'IN TRANSIT',
+                  color: AppColors.warning,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Expanded(child: _StatCard(value: 0, label: 'ACTIVE', color: AppColors.primary)),
-                const SizedBox(width: 8),
-                const Expanded(child: _StatCard(value: 0, label: 'IN TRANSIT', color: AppColors.warning)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Expanded(child: _StatCard(value: 0, label: 'DELAYED', color: AppColors.danger)),
-                const SizedBox(width: 8),
-                const Expanded(child: _StatCard(value: 0, label: 'COMPLETED', color: AppColors.success)),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'CURRENT DELIVERY',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Expanded(
+                child: _StatCard(
+                  value: 0,
+                  label: 'DELAYED',
+                  color: AppColors.danger,
+                ),
               ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: _StatCard(
+                  value: 0,
+                  label: 'COMPLETED',
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'CURRENT DELIVERY',
+            style: TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
             ),
-            const SizedBox(height: 12),
-            DriverCard(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.local_shipping_outlined,
-                        size: 48,
-                        color: AppColors.mutedText.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 12),
+          DriverCard(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.local_shipping_outlined,
+                      size: 48,
+                      color: AppColors.mutedText.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No current delivery',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'No current delivery',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Your active deliveries will appear here.',
+                      style: TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 13,
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Your active deliveries will appear here.',
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 }

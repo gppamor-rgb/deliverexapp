@@ -1,9 +1,20 @@
 import 'package:dio/dio.dart';
 
+import '../services/session_service.dart';
+
 String messageFromDioException(
   DioException error, {
   String fallback = 'Request failed. Please try again.',
+  String? serverErrorMessage,
 }) {
+  final statusCode = error.response?.statusCode;
+  if (serverErrorMessage != null && statusCode != null && statusCode >= 500) {
+    return serverErrorMessage;
+  }
+  if (statusCode == 401 || statusCode == 419) {
+    return SessionService.sessionExpiredMessage();
+  }
+
   final data = error.response?.data;
   final parsed = messageFromResponseData(data);
   if (parsed.isNotEmpty) return parsed;

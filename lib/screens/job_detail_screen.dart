@@ -459,6 +459,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     return messageFromDioException(
       error,
       fallback: 'Unable to update delivery status.',
+      serverErrorMessage:
+          'The server could not update the delivery status. Please try again or contact your administrator.',
     );
   }
 

@@ -68,37 +68,36 @@ class ChatbotProvider extends ChangeNotifier {
 
     _pendingState = nextState;
     _lastSent = trimmed;
-    _messages.add(ChatMessage(
-      role: 'user',
-      content: trimmed,
-      timestamp: DateTime.now(),
-    ));
+    _messages.add(
+      ChatMessage(role: 'user', content: trimmed, timestamp: DateTime.now()),
+    );
     _loading = true;
     notifyListeners();
 
     try {
-      final history =
-          _messages
-              .where((m) => !m.isError)
-              .map(
-                (m) => {'role': m.role, 'content': m.content},
-              )
-              .toList();
+      final history = _messages
+          .where((m) => !m.isError)
+          .map((m) => {'role': m.role, 'content': m.content})
+          .toList();
 
       final reply = await _service.sendMessage(trimmed, history);
 
-      _messages.add(ChatMessage(
-        role: 'assistant',
-        content: reply,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          role: 'assistant',
+          content: reply,
+          timestamp: DateTime.now(),
+        ),
+      );
     } catch (err) {
-      _messages.add(ChatMessage(
-        role: 'assistant',
-        content: err.toString(),
-        isError: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          role: 'assistant',
+          content: err.toString(),
+          isError: true,
+          timestamp: DateTime.now(),
+        ),
+      );
     } finally {
       _loading = false;
       if (_pendingState != null) {

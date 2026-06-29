@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/document_type_mapper.dart';
 import '../database/action_store.dart';
 import 'api_client.dart';
-import 'auth_service.dart';
+import 'session_service.dart';
 
 class DiscardActionException implements Exception {}
 
@@ -17,7 +16,7 @@ class SyncService {
 
   final _actionStore = ActionStore();
   final _apiClient = ApiClient();
-  final _storage = const FlutterSecureStorage();
+  final _sessionService = SessionService.instance;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStream => _syncController.stream;
@@ -37,7 +36,16 @@ class SyncService {
 
       _syncController.add(SyncSyncing(pendingCount: pending.length));
 
-      final token = await _storage.read(key: AuthService.tokenKey);
+      final String? token;
+      try {
+        token = await _sessionService.validAccessToken(
+          role: MobileSessionRole.driver,
+          dio: _apiClient.dio,
+        );
+      } on SessionExpiredException catch (error) {
+        _syncController.add(SyncError(error.message));
+        return;
+      }
       if (token == null || token.isEmpty) {
         _syncController.add(const SyncError('No auth token'));
         return;
@@ -151,7 +159,10 @@ class SyncService {
     final headers = <String, String>{'Authorization': 'Bearer $token'};
     if (force) headers['X-Force-Sync'] = 'true';
 
-    final opts = Options(headers: headers);
+    final opts = Options(
+      headers: headers,
+      extra: const {'sessionRole': 'driver'},
+    );
 
     switch (action.actionType) {
       case 'status_update':
@@ -177,6 +188,7 @@ class SyncService {
           data: formData,
           options: Options(
             headers: headers,
+            extra: const {'sessionRole': 'driver'},
             contentType: 'multipart/form-data',
           ),
         );
@@ -205,6 +217,7 @@ class SyncService {
           data: formData,
           options: Options(
             headers: headers,
+            extra: const {'sessionRole': 'driver'},
             contentType: 'multipart/form-data',
           ),
         );
@@ -234,6 +247,7 @@ class SyncService {
           data: formData,
           options: Options(
             headers: headers,
+            extra: const {'sessionRole': 'driver'},
             contentType: 'multipart/form-data',
           ),
         );

@@ -15,16 +15,12 @@ class AssignmentStore {
     final driverId = await _db.getSetting('current_driver_id') ?? '';
 
     for (final assignment in assignments) {
-      batch.insert(
-        'cached_assignments',
-        {
-          'id': assignment.id,
-          'data': jsonEncode(assignment.raw),
-          'cached_at': now,
-          'driver_id': driverId,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      batch.insert('cached_assignments', {
+        'id': assignment.id,
+        'data': jsonEncode(assignment.raw),
+        'cached_at': now,
+        'driver_id': driverId,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit(noResult: true);
   }
@@ -32,16 +28,12 @@ class AssignmentStore {
   Future<void> cacheAssignment(DriverAssignment assignment) async {
     final db = await _db.database;
     final driverId = await _db.getSetting('current_driver_id') ?? '';
-    await db.insert(
-      'cached_assignments',
-      {
-        'id': assignment.id,
-        'data': jsonEncode(assignment.raw),
-        'cached_at': DateTime.now().toIso8601String(),
-        'driver_id': driverId,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('cached_assignments', {
+      'id': assignment.id,
+      'data': jsonEncode(assignment.raw),
+      'cached_at': DateTime.now().toIso8601String(),
+      'driver_id': driverId,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<DriverAssignment?> getCachedAssignment(String id) async {
@@ -54,7 +46,8 @@ class AssignmentStore {
       limit: 1,
     );
     if (rows.isEmpty) return null;
-    final data = jsonDecode(rows.first['data'] as String) as Map<String, dynamic>;
+    final data =
+        jsonDecode(rows.first['data'] as String) as Map<String, dynamic>;
     return DriverAssignment.fromJson(data);
   }
 
@@ -80,10 +73,6 @@ class AssignmentStore {
 
   Future<void> removeCached(String id) async {
     final db = await _db.database;
-    await db.delete(
-      'cached_assignments',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('cached_assignments', where: 'id = ?', whereArgs: [id]);
   }
 }

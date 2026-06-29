@@ -72,13 +72,17 @@ class DatabaseHelper {
       ''');
     }
     if (oldVersion < 3) {
-      final cachedCols = await db.rawQuery('PRAGMA table_info(cached_assignments)');
+      final cachedCols = await db.rawQuery(
+        'PRAGMA table_info(cached_assignments)',
+      );
       if (!cachedCols.any((c) => c['name'] == 'driver_id')) {
         await db.execute(
           'ALTER TABLE cached_assignments ADD COLUMN driver_id TEXT NOT NULL DEFAULT \'\'',
         );
       }
-      final actionsCols = await db.rawQuery('PRAGMA table_info(offline_actions)');
+      final actionsCols = await db.rawQuery(
+        'PRAGMA table_info(offline_actions)',
+      );
       if (!actionsCols.any((c) => c['name'] == 'driver_id')) {
         await db.execute(
           'ALTER TABLE offline_actions ADD COLUMN driver_id TEXT NOT NULL DEFAULT \'\'',
@@ -100,20 +104,15 @@ class DatabaseHelper {
 
   Future<void> setSetting(String key, String value) async {
     final db = await database;
-    await db.insert(
-      'app_settings',
-      {'key': key, 'value': value},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('app_settings', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteSetting(String key) async {
     final db = await database;
-    await db.delete(
-      'app_settings',
-      where: 'key = ?',
-      whereArgs: [key],
-    );
+    await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
   }
 
   Future<void> close() async {

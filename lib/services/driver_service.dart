@@ -1,23 +1,20 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/document_type_mapper.dart';
 import '../models/driver_assignment.dart';
 import '../models/driver_notification.dart';
 import 'api_client.dart';
-import 'auth_service.dart';
+import 'session_service.dart';
 
 Map<String, dynamic> driverProfileUpdateBody({required String phone}) {
   return {'phone': phone.trim()};
 }
 
 class DriverService {
-  DriverService({ApiClient? apiClient, FlutterSecureStorage? storage})
-    : _apiClient = apiClient ?? ApiClient(),
-      _storage = storage ?? const FlutterSecureStorage();
+  DriverService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
-  final FlutterSecureStorage _storage;
+  final _sessionService = SessionService.instance;
 
   Future<DriverAssignmentsPage> fetchAssignments({
     int page = 1,
@@ -230,9 +227,13 @@ class DriverService {
   }
 
   Future<Options> _authOptions({String? contentType}) async {
-    final token = await _storage.read(key: AuthService.tokenKey);
+    final token = await _sessionService.validAccessToken(
+      role: MobileSessionRole.driver,
+      dio: _apiClient.dio,
+    );
     return Options(
       contentType: contentType,
+      extra: const {'sessionRole': 'driver'},
       headers: {
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       },

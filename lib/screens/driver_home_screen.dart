@@ -55,10 +55,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         );
       }
     }
-    return _HomeData(
-      assignments: assignments,
-      profile: profile,
-    );
+    return _HomeData(assignments: assignments, profile: profile);
   }
 
   Future<void> _refresh() async {
@@ -212,11 +209,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   void _openAssignment(DriverAssignment assignment) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => JobDetailScreen(assignmentId: assignment.id),
-      ),
-    ).then((_) => _refresh());
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => JobDetailScreen(assignmentId: assignment.id),
+          ),
+        )
+        .then((_) => _refresh());
   }
 
   DriverAssignment? _firstActive(List<DriverAssignment> assignments) {

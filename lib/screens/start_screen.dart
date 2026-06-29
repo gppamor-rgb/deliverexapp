@@ -5,9 +5,8 @@ import '../core/app_colors.dart';
 import '../core/sizes.dart';
 import '../core/transitions.dart';
 import '../services/auth_service.dart';
+import 'auth_gate.dart';
 import 'customer_forgot_password_screen.dart';
-import 'customer_shell_screen.dart';
-import 'driver_shell_screen.dart';
 import 'tracking_screen.dart';
 
 class StartScreen extends StatefulWidget {
@@ -52,17 +51,10 @@ class _StartScreenState extends State<StartScreen> {
         return;
       }
 
-      if (result.user.isDriver) {
-        AppTransitions.pushReplace(
-          context,
-          DriverShellScreen(user: result.user),
-        );
-      } else {
-        AppTransitions.pushReplace(
-          context,
-          CustomerShellScreen(user: result.user),
-        );
-      }
+      AppTransitions.pushReplace(
+        context,
+        authenticatedEntryFor(user: result.user),
+      );
     } on AuthException catch (error) {
       setState(() => _error = error.message);
     } catch (_) {

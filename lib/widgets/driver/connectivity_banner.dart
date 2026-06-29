@@ -29,9 +29,7 @@ class ConnectivityBanner extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, topPadding + 6, 20, 6),
       decoration: BoxDecoration(
         color: _backgroundColor,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(14),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
         boxShadow: [
           BoxShadow(
             color: _backgroundColor.withValues(alpha: 0.35),
@@ -106,10 +104,10 @@ class ConnectivityBanner extends StatelessWidget {
     final iconData = !isOnline
         ? Icons.cloud_off_rounded
         : hasError
-            ? Icons.warning_amber_rounded
-            : isSyncing
-                ? Icons.sync_rounded
-                : Icons.cloud_done_rounded;
+        ? Icons.warning_amber_rounded
+        : isSyncing
+        ? Icons.sync_rounded
+        : Icons.cloud_done_rounded;
 
     return Icon(iconData, color: Colors.white, size: 20);
   }

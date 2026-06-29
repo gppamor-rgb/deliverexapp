@@ -135,10 +135,7 @@ class ActionStore {
     final db = await _db.database;
     await db.update(
       'offline_actions',
-      {
-        'status': 'synced',
-        'synced_at': DateTime.now().toIso8601String(),
-      },
+      {'status': 'synced', 'synced_at': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -158,11 +155,7 @@ class ActionStore {
 
     await db.update(
       'offline_actions',
-      {
-        'status': 'pending',
-        'retry_count': newRetryCount,
-        'last_error': error,
-      },
+      {'status': 'pending', 'retry_count': newRetryCount, 'last_error': error},
       where: 'id = ?',
       whereArgs: [id],
     );

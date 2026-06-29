@@ -12,145 +12,134 @@ class CustomerServicesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Construction logistics you can coordinate and track',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Construction logistics you can coordinate and track',
+            style: TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Deliverex supports operational logistics for construction and site delivery requirements — from material hauling to proof-of-delivery verification.',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 13,
-                height: 1.4,
-              ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Deliverex supports operational logistics for construction and site delivery requirements — from material hauling to proof-of-delivery verification.',
+            style: TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 13,
+              height: 1.4,
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _ServiceButton(
-                    icon: Icons.support_agent_rounded,
-                    label: 'Contact Support',
-                    color: AppColors.primary,
-                    onTap: () async {
-                      final uri = Uri(
-                        scheme: 'mailto',
-                        path: 'deliverex.support@gmail.com',
-                      );
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
-                      }
-                    },
-                  ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _ServiceButton(
+                  icon: Icons.support_agent_rounded,
+                  label: 'Contact Support',
+                  color: AppColors.primary,
+                  onTap: () async {
+                    final uri = Uri(
+                      scheme: 'mailto',
+                      path: 'deliverex.support@gmail.com',
+                    );
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  },
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _ServiceButton(
-                    icon: Icons.search_rounded,
-                    label: 'Track Delivery',
-                    color: AppColors.accent,
-                    onTap: () => AppTransitions.push(
-                      context,
-                      const TrackingScreen(),
-                    ),
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ServiceButton(
+                  icon: Icons.search_rounded,
+                  label: 'Track Delivery',
+                  color: AppColors.accent,
+                  onTap: () =>
+                      AppTransitions.push(context, const TrackingScreen()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const _ServiceCard(
+            icon: Icons.precision_manufacturing_rounded,
+            title: 'Material Hauling',
+            description:
+                'Transportation of construction materials such as aggregates, sand, gravel, and related resources.',
+          ),
+          const SizedBox(height: 10),
+          const _ServiceCard(
+            icon: Icons.local_shipping_rounded,
+            title: 'Delivery and Transport',
+            description:
+                'Coordination and execution of deliveries using company drivers and vehicles.',
+          ),
+          const SizedBox(height: 10),
+          const _ServiceCard(
+            icon: Icons.construction_rounded,
+            title: 'Site Preparation Support',
+            description:
+                'Logistics support for site preparation and construction activities.',
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Get in touch',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Contact Information',
+            style: TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Reach our support team for delivery inquiries, service requests, and account assistance.',
+            style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          DriverCard(
+            child: Column(
+              children: [
+                _ContactRow(
+                  icon: Icons.email_outlined,
+                  label: 'Email',
+                  value: 'deliverex.support@gmail.com',
+                  onTap: () async {
+                    final uri = Uri(
+                      scheme: 'mailto',
+                      path: 'deliverex.support@gmail.com',
+                    );
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                _ContactRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Phone',
+                  value: '(+63) 995-582-0222',
+                  onTap: () async {
+                    final uri = Uri(scheme: 'tel', path: '+639955820222');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 22),
-            const _ServiceCard(
-              icon: Icons.precision_manufacturing_rounded,
-              title: 'Material Hauling',
-              description:
-                  'Transportation of construction materials such as aggregates, sand, gravel, and related resources.',
-            ),
-            const SizedBox(height: 10),
-            const _ServiceCard(
-              icon: Icons.local_shipping_rounded,
-              title: 'Delivery and Transport',
-              description:
-                  'Coordination and execution of deliveries using company drivers and vehicles.',
-            ),
-            const SizedBox(height: 10),
-            const _ServiceCard(
-              icon: Icons.construction_rounded,
-              title: 'Site Preparation Support',
-              description:
-                  'Logistics support for site preparation and construction activities.',
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Get in touch',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Contact Information',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              'Reach our support team for delivery inquiries, service requests, and account assistance.',
-              style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 14),
-            DriverCard(
-              child: Column(
-                children: [
-                  _ContactRow(
-                    icon: Icons.email_outlined,
-                    label: 'Email',
-                    value: 'deliverex.support@gmail.com',
-                    onTap: () async {
-                      final uri = Uri(
-                        scheme: 'mailto',
-                        path: 'deliverex.support@gmail.com',
-                      );
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
-                      }
-                    },
-                  ),
-                  const Divider(height: 1, color: AppColors.border),
-                  _ContactRow(
-                    icon: Icons.phone_outlined,
-                    label: 'Phone',
-                    value: '(+63) 995-582-0222',
-                    onTap: () async {
-                      final uri = Uri(
-                        scheme: 'tel',
-                        path: '+639955820222',
-                      );
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 }
@@ -300,7 +289,11 @@ class _ContactRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.open_in_new_rounded, size: 16, color: AppColors.mutedText),
+            const Icon(
+              Icons.open_in_new_rounded,
+              size: 16,
+              color: AppColors.mutedText,
+            ),
           ],
         ),
       ),

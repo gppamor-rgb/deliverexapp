@@ -36,4 +36,116 @@ void main() {
 
     expect(isDocumentUploadSelectableAssignment(assignment), isFalse);
   });
+
+  test('identifies OCR Review document types', () {
+    expect(isOcrReviewDocumentType('receipt'), isTrue);
+    expect(isOcrReviewDocumentType('invoice'), isTrue);
+    expect(isOcrReviewDocumentType('job_order'), isTrue);
+    expect(isOcrReviewDocumentType('other'), isTrue);
+    expect(isOcrReviewDocumentType('proof_of_delivery'), isFalse);
+  });
+
+  test('delivery receipt requires arrived or completed status', () {
+    for (final status in [
+      'assigned',
+      'en_route_to_pickup',
+      'arrived_at_pickup',
+      'en_route_to_destination',
+    ]) {
+      expect(
+        documentUploadPreflightMessage(type: 'receipt', status: status),
+        contains('Document uploads are only available'),
+        reason: '$status should be blocked for Delivery Receipt uploads.',
+      );
+    }
+
+    expect(
+      documentUploadPreflightMessage(type: 'receipt', status: 'arrived'),
+      isNull,
+    );
+    expect(
+      documentUploadPreflightMessage(type: 'receipt', status: 'completed'),
+      isNull,
+    );
+  });
+
+  test('invoice job order and other are not status-blocked', () {
+    for (final status in [
+      'assigned',
+      'en_route_to_pickup',
+      'arrived_at_pickup',
+      'en_route_to_destination',
+      'arrived',
+      'completed',
+    ]) {
+      for (final type in ['invoice', 'job_order', 'other']) {
+        expect(
+          documentUploadPreflightMessage(type: type, status: status),
+          isNull,
+          reason: '$type should upload without status restriction at $status.',
+        );
+      }
+    }
+  });
+
+  test('proof of delivery is status restricted when preflighted directly', () {
+    expect(
+      documentUploadPreflightMessage(
+        type: 'proof_of_delivery',
+        status: 'assigned',
+      ),
+      contains('Document uploads are only available'),
+    );
+  });
+
+  test('upload response message reflects website review visibility', () {
+    expect(
+      documentUploadSuccessMessage({
+        'document': {'id': 10},
+        'ocr_result': {'id': 20},
+      }),
+      documentUploadSuccessReviewMessage,
+    );
+    expect(
+      documentUploadSuccessMessage({
+        'document': {'id': 10},
+        'ocr_result': null,
+      }),
+      documentUploadSuccessReviewMessage,
+    );
+
+    expect(documentUploadSuccessReviewMessage, isNot(contains('OCR')));
+    expect(documentUploadSuccessReviewMessage, isNot(contains('attachment')));
+    expect(
+      documentUploadSuccessReviewMessage,
+      isNot(contains('not yet visible')),
+    );
+    expect(
+      documentUploadSuccessReviewMessage,
+      isNot(contains('administrator')),
+    );
+  });
+
+  test('type help avoids OCR and attachment wording', () {
+    final help = documentUploadTypeHelp('other', 'arrived');
+
+    expect(
+      help,
+      'This document will be available for website review after upload.',
+    );
+    expect(help, isNot(contains('OCR')));
+    expect(help, isNot(contains('attachment')));
+  });
+
+  test('invoice job order and other help avoids restriction wording', () {
+    for (final type in ['invoice', 'job_order', 'other']) {
+      final help = documentUploadTypeHelp(type, 'assigned');
+
+      expect(
+        help,
+        'This document will be available for website review after upload.',
+      );
+      expect(help, isNot(contains('Arrived or Completed')));
+    }
+  });
 }

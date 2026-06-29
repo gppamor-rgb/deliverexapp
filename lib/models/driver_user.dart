@@ -4,12 +4,14 @@ class DriverUser {
     required this.name,
     required this.email,
     required this.roleName,
+    this.mustChangePassword = false,
   });
 
   final String id;
   final String name;
   final String email;
   final String roleName;
+  final bool mustChangePassword;
 
   bool get isDriver {
     final normalized = roleName.toLowerCase().trim();
@@ -49,6 +51,7 @@ class DriverUser {
       }(),
       email: json['email']?.toString() ?? '',
       roleName: roleName,
+      mustChangePassword: _boolValue(json['must_change_password']),
     );
   }
 }
@@ -61,4 +64,11 @@ String _firstString(List<dynamic> values) {
     }
   }
   return '';
+}
+
+bool _boolValue(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final text = value?.toString().trim().toLowerCase() ?? '';
+  return text == 'true' || text == '1' || text == 'yes';
 }

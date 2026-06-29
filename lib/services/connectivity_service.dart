@@ -27,9 +27,7 @@ class ConnectivityService {
   }
 
   void _updateStatus(List<ConnectivityResult> results) {
-    final online = results.any(
-      (r) => r != ConnectivityResult.none,
-    );
+    final online = results.any((r) => r != ConnectivityResult.none);
     if (online != _isOnline) {
       _isOnline = online;
       _statusController.add(online);

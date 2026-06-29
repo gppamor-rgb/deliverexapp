@@ -19,12 +19,7 @@ class DriverAppHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.96),
         border: const Border(bottom: BorderSide(color: AppColors.border)),

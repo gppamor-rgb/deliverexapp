@@ -103,6 +103,18 @@ class _TrackingScreenState extends State<TrackingScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _openLastLocationMaps(TrackingLocation location) async {
+    if (!location.hasCoordinates) {
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query='
+      '${location.latitude},${location.longitude}',
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,7 +142,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Monitor delivery progress, estimated arrival, and proof-of-delivery information without signing in.',
+                    'Monitor delivery progress, route details, and the latest available location without signing in.',
                     style: TextStyle(color: AppColors.mutedText, height: 1.4),
                   ),
                   const SizedBox(height: 18),
@@ -201,18 +213,23 @@ class _TrackingScreenState extends State<TrackingScreen> {
               const DriverEmptyState(
                 title: 'Delivery status',
                 message:
-                    'Enter a tracking ID to view the current status, ETA window, and proof-of-delivery details.',
+                    'Enter a tracking ID to view the current status, ETA window, route, and latest location.',
                 icon: Icons.local_shipping_outlined,
               )
             else ...[
               _StatusSummaryCard(result: _result!),
               const SizedBox(height: 16),
+              _LastLocationCard(
+                result: _result!,
+                onOpenMaps: _result!.lastLocation?.hasCoordinates == true
+                    ? () => _openLastLocationMaps(_result!.lastLocation!)
+                    : null,
+              ),
+              const SizedBox(height: 16),
               _RouteCard(
                 result: _result!,
                 onOpenMaps: () => _openMaps(_result!),
               ),
-              const SizedBox(height: 16),
-              _ProofCard(result: _result!),
               const SizedBox(height: 16),
               _ActivityCard(result: _result!),
             ],
@@ -270,11 +287,6 @@ class _StatusSummaryCard extends StatelessWidget {
                 label: 'ETA',
                 value: result.etaLabel,
               ),
-              _InfoPill(
-                icon: Icons.person_outline,
-                label: 'Customer',
-                value: result.customerName,
-              ),
               if (result.lastUpdated != null)
                 _InfoPill(
                   icon: Icons.update_rounded,
@@ -331,6 +343,95 @@ class _StatusSummaryCard extends StatelessWidget {
 
   int _statusIndex(String status) {
     return deliveryStatusIndex(status);
+  }
+}
+
+class _LastLocationCard extends StatelessWidget {
+  const _LastLocationCard({required this.result, required this.onOpenMaps});
+
+  final DeliveryTrackingResult result;
+  final VoidCallback? onOpenMaps;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = result.lastLocation;
+    final hasLocation = location != null;
+
+    return DriverCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            icon: Icons.my_location_rounded,
+            title: 'Last Location',
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: hasLocation
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : AppColors.border.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    hasLocation
+                        ? Icons.location_searching_rounded
+                        : Icons.location_off_outlined,
+                    color: hasLocation
+                        ? AppColors.primary
+                        : AppColors.mutedText,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        location?.displayText ?? 'Last location unavailable',
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        location?.timestamp ?? 'No location update yet',
+                        style: const TextStyle(
+                          color: AppColors.mutedText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onOpenMaps,
+            icon: const Icon(Icons.map_outlined, size: 18),
+            label: const Text('Open Last Location'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -476,13 +577,9 @@ class _RouteCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Route',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+          const _SectionTitle(
+            icon: Icons.route_rounded,
+            title: 'Route Details',
           ),
           const SizedBox(height: 12),
           _KeyValueRow(label: 'Pickup', value: result.pickupAddress),
@@ -493,91 +590,8 @@ class _RouteCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: result.dropoffAddress == '—' ? null : onOpenMaps,
             icon: const Icon(Icons.map_outlined, size: 18),
-            label: const Text('Open in Maps'),
+            label: const Text('Open Destination'),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProofCard extends StatelessWidget {
-  const _ProofCard({required this.result});
-
-  final DeliveryTrackingResult result;
-
-  @override
-  Widget build(BuildContext context) {
-    final proof = result.completionProof;
-    if (proof == null) {
-      return const DriverEmptyState(
-        title: 'Proof of delivery',
-        message: 'No proof-of-delivery document has been attached yet.',
-        icon: Icons.receipt_long_outlined,
-      );
-    }
-
-    final url = _firstString([
-      proof['file_url'],
-      proof['url'],
-      proof['document_url'],
-      proof['proof_url'],
-    ]);
-
-    return DriverCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Proof of delivery',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _KeyValueRow(
-            label: 'Type',
-            value: _firstString([
-              proof['proof_type'],
-              proof['type'],
-              proof['document_type'],
-            ]).ifBlank('—'),
-          ),
-          _KeyValueRow(
-            label: 'Receiver',
-            value: _firstString([
-              proof['receiver_name'],
-              proof['received_by'],
-              proof['contact_name'],
-            ]).ifBlank('—'),
-          ),
-          _KeyValueRow(
-            label: 'Contact',
-            value: _firstString([
-              proof['receiver_contact'],
-              proof['contact_number'],
-            ]).ifBlank('—'),
-          ),
-          _KeyValueRow(
-            label: 'Notes',
-            value: _firstString([
-              proof['delivery_notes'],
-              proof['notes'],
-            ]).ifBlank('—'),
-          ),
-          if (url.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            FilledButton.tonalIcon(
-              onPressed: () => launchUrl(
-                Uri.parse(url),
-                mode: LaunchMode.externalApplication,
-              ),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: const Text('Open proof file'),
-            ),
-          ],
         ],
       ),
     );
@@ -596,13 +610,9 @@ class _ActivityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tracking activity',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+          const _SectionTitle(
+            icon: Icons.timeline_rounded,
+            title: 'Tracking Activity',
           ),
           const SizedBox(height: 12),
           if (visibleLogs.isEmpty)
@@ -622,6 +632,39 @@ class _ActivityCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }

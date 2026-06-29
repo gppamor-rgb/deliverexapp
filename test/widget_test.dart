@@ -1,7 +1,12 @@
 import 'package:deliverex/app/deliverex_driver_app.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
   testWidgets('shows splash screen then start screen', (
     WidgetTester tester,
   ) async {

@@ -83,10 +83,7 @@ class SkeletonCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: _buildContent(),
-      ),
+      child: Padding(padding: const EdgeInsets.all(18), child: _buildContent()),
     );
   }
 
