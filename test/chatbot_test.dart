@@ -14,11 +14,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Deliverex Assistant'), findsWidgets);
-    expect(find.text('Track My Delivery'), findsOneWidget);
-    expect(find.text('What is a Tracking ID?'), findsOneWidget);
+    expect(find.text('Track Delivery'), findsOneWidget);
+    expect(find.text('Submit Concern'), findsOneWidget);
+    expect(find.text('Status Guide'), findsOneWidget);
     expect(find.text('Account Help'), findsOneWidget);
     expect(find.text('Contact Support'), findsOneWidget);
-    expect(find.text('General Questions'), findsOneWidget);
   });
 
   testWidgets('account help includes Link Delivery', (tester) async {
@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ChatbotScreen()));
     await tester.pump();
 
-    await tester.tap(find.text('Track My Delivery'));
+    await tester.tap(find.text('Track Delivery'));
     await tester.pumpAndSettle();
 
     expect(
@@ -69,6 +69,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Deliverex Assistant'), findsOneWidget);
-    expect(find.text('Track My Delivery'), findsOneWidget);
+    expect(find.text('Track Delivery'), findsOneWidget);
   });
 }

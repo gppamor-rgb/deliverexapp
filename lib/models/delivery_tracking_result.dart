@@ -199,7 +199,48 @@ class DeliveryTrackingResult {
     return null;
   }
 
-  bool get hasProof => completionProof != null;
+  TrackingProofDocument? get proofDocument {
+    for (final candidate in _proofDocumentCandidates) {
+      final proof = TrackingProofDocument.fromJson(candidate);
+      if (proof != null) {
+        return proof;
+      }
+    }
+    return null;
+  }
+
+  bool get hasProof => proofDocument != null;
+
+  List<Map<String, dynamic>> get _proofDocumentCandidates {
+    final candidates = <Map<String, dynamic>>[];
+
+    for (final value in [
+      _source['completion_proof'],
+      raw['completion_proof'],
+      _source['proof_document'],
+      raw['proof_document'],
+      _source['pod'],
+      raw['pod'],
+    ]) {
+      final map = _map(value);
+      if (map.isNotEmpty) {
+        candidates.add(map);
+      }
+    }
+
+    candidates.addAll(_list(_source['proof_documents']));
+    candidates.addAll(_list(raw['proof_documents']));
+
+    final documents = [
+      ..._list(_source['documents']),
+      ..._list(raw['documents']),
+      ..._list(_source['delivery_documents']),
+      ..._list(raw['delivery_documents']),
+    ];
+    candidates.addAll(documents.where(_isProofDocument));
+
+    return candidates;
+  }
 
   String get notes => _firstString([
     _string(_source['notes']),
@@ -240,6 +281,189 @@ class DeliveryTrackingResult {
     jobOrder['dropoff'] is Map ? _map(jobOrder['dropoff'])['lng'] : null,
     jobOrder['dropoff'] is Map ? _map(jobOrder['dropoff'])['lon'] : null,
   ]);
+}
+
+class TrackingProofDocument {
+  const TrackingProofDocument({
+    required this.id,
+    required this.typeLabel,
+    required this.submittedAt,
+    required this.statusLabel,
+    required this.fileUrl,
+  });
+
+  final String id;
+  final String typeLabel;
+  final String submittedAt;
+  final String statusLabel;
+  final String? fileUrl;
+
+  bool get canView => fileUrl != null && fileUrl!.trim().isNotEmpty;
+
+  static TrackingProofDocument? fromJson(Map<String, dynamic> json) {
+    if (json.isEmpty || !_looksLikeProofDocument(json)) {
+      return null;
+    }
+
+    final id = _firstString([
+      json['id'],
+      json['document_id'],
+      json['delivery_document_id'],
+      json['file_id'],
+    ]);
+    final rawType = _firstString([
+      json['type_label'],
+      json['document_type_label'],
+      json['label'],
+      json['name'],
+      json['title'],
+      json['type'],
+      json['document_type'],
+    ]);
+    final submittedAt = _firstString([
+      json['submitted_at'],
+      json['uploaded_at'],
+      json['completed_at'],
+      json['created_at'],
+      json['updated_at'],
+    ]);
+    final status = _firstString([
+      json['status_label'],
+      json['processing_status'],
+      json['ocr_status'],
+      json['status'],
+      json['state'],
+    ]);
+    final fileUrl = _resolveProofFileUrl(json, id);
+
+    return TrackingProofDocument(
+      id: id,
+      typeLabel: _proofTypeLabel(rawType),
+      submittedAt: submittedAt.isEmpty
+          ? '—'
+          : formatDeliverexDateTime(submittedAt),
+      statusLabel: status.isEmpty ? 'Available' : _proofStatusLabel(status),
+      fileUrl: fileUrl,
+    );
+  }
+}
+
+bool _isProofDocument(Map<String, dynamic> value) {
+  final type = _firstString([
+    value['type'],
+    value['document_type'],
+    value['kind'],
+    value['category'],
+    value['name'],
+    value['title'],
+  ]).toLowerCase();
+  return type == 'pod' ||
+      type == 'proof_of_delivery' ||
+      type.contains('proof of delivery') ||
+      type.contains('delivery receipt');
+}
+
+bool _looksLikeProofDocument(Map<String, dynamic> value) {
+  if (_isProofDocument(value)) {
+    return true;
+  }
+
+  final hasFile = _firstString([
+    value['file_url'],
+    value['url'],
+    value['download_url'],
+    value['file_path'],
+    value['path'],
+    value['attachment_url'],
+  ]).isNotEmpty;
+  final hasDocumentId = _firstString([
+    value['id'],
+    value['document_id'],
+    value['delivery_document_id'],
+  ]).isNotEmpty;
+  final hasProofKeys =
+      value.containsKey('receiver_name') ||
+      value.containsKey('proof_type') ||
+      value.containsKey('completed_at');
+
+  return hasFile || (hasDocumentId && hasProofKeys);
+}
+
+String _proofTypeLabel(String value) {
+  final normalized = value.trim().toLowerCase();
+  return switch (normalized) {
+    'pod' || 'proof_of_delivery' => 'Proof of Delivery',
+    'receipt' || 'delivery_receipt' => 'Delivery Receipt Photo',
+    'invoice' => 'Invoice',
+    'job_order' => 'Job Order',
+    _ => value.trim().isEmpty ? 'Proof of Delivery' : value.trim(),
+  };
+}
+
+String _proofStatusLabel(String value) {
+  final normalized = value.trim().toLowerCase().replaceAll('_', ' ');
+  if (normalized.isEmpty) {
+    return 'Available';
+  }
+  return normalized
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+String? _resolveProofFileUrl(Map<String, dynamic> value, String id) {
+  final direct = _firstString([
+    value['file_url'],
+    value['url'],
+    value['download_url'],
+    value['view_url'],
+    value['attachment_url'],
+    value['public_url'],
+  ]);
+  final normalizedDirect = _normalizeProofUrl(direct);
+  if (normalizedDirect != null) {
+    return normalizedDirect;
+  }
+
+  final path = _firstString([
+    value['file_path'],
+    value['path'],
+    value['storage_path'],
+    value['document_path'],
+  ]);
+  final normalizedPath = _normalizeProofUrl(path);
+  if (normalizedPath != null) {
+    return normalizedPath;
+  }
+
+  if (id.isNotEmpty) {
+    return 'https://deliverexapp.com/api/documents/$id/file';
+  }
+
+  return null;
+}
+
+String? _normalizeProofUrl(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  final uri = Uri.tryParse(trimmed);
+  if (uri != null && uri.hasScheme) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return 'https://deliverexapp.com$trimmed';
+  }
+
+  if (trimmed.startsWith('storage/') || trimmed.startsWith('api/')) {
+    return 'https://deliverexapp.com/$trimmed';
+  }
+
+  return 'https://deliverexapp.com/storage/$trimmed';
 }
 
 class TrackingLocation {

@@ -122,6 +122,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _openProofDocument(TrackingProofDocument proof) async {
+    final url = proof.fileUrl;
+    if (url == null || url.trim().isEmpty) {
+      return;
+    }
+
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -238,6 +247,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 onOpenMaps: () => _openMaps(_result!),
               ),
               const SizedBox(height: 16),
+              if (_result!.proofDocument != null) ...[
+                _ProofOfDeliveryCard(
+                  proof: _result!.proofDocument!,
+                  onView: _result!.proofDocument!.canView
+                      ? () => _openProofDocument(_result!.proofDocument!)
+                      : null,
+                ),
+                const SizedBox(height: 16),
+              ],
               _ActivityCard(result: _result!),
             ],
           ],
@@ -598,6 +616,161 @@ class _RouteCard extends StatelessWidget {
             onPressed: result.dropoffAddress == '—' ? null : onOpenMaps,
             icon: const Icon(Icons.map_outlined, size: 18),
             label: const Text('Open Destination'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProofOfDeliveryCard extends StatelessWidget {
+  const _ProofOfDeliveryCard({required this.proof, required this.onView});
+
+  final TrackingProofDocument proof;
+  final VoidCallback? onView;
+
+  @override
+  Widget build(BuildContext context) {
+    return DriverCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.success.withValues(alpha: 0.35),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: AppColors.success,
+                  size: 19,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Proof of Delivery Available',
+                    style: TextStyle(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle(
+            icon: Icons.verified_outlined,
+            title: 'Proof of delivery',
+          ),
+          const SizedBox(height: 12),
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: 'Type: ',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                TextSpan(text: proof.typeLabel),
+              ],
+            ),
+            style: const TextStyle(
+              color: AppColors.mutedText,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: 'Submitted: ',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                TextSpan(text: proof.submittedAt),
+              ],
+            ),
+            style: const TextStyle(
+              color: AppColors.mutedText,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    proof.typeLabel,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    proof.submittedAt == '—'
+                        ? 'Uploaded'
+                        : 'Uploaded ${proof.submittedAt}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Text(
+                    proof.statusLabel,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: onView,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

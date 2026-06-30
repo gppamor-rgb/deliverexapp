@@ -10,11 +10,11 @@ import 'login_screen.dart';
 import 'tracking_screen.dart';
 
 const _mainOptions = [
-  'Track My Delivery',
-  'What is a Tracking ID?',
+  'Track Delivery',
+  'Submit Concern',
+  'Status Guide',
   'Account Help',
   'Contact Support',
-  'General Questions',
 ];
 
 const _accountOptions = [
@@ -25,73 +25,72 @@ const _accountOptions = [
 ];
 
 const _quickOptions = [
-  'Track Another Delivery',
+  'Track Again',
+  'Submit Concern',
+  'About Deliverex',
   'Contact Support',
-  'Return to Menu',
+  'Menu',
 ];
 
-const _supportEmail = 'deliverex.support@gmail.com';
+const _supportEmail = 'deliverexapp@gmail.com';
 const _supportPhone = '(+63) 995-582-0222';
 const _welcomeMessage =
-    'Hello! I can help you with tracking deliveries, Tracking IDs, account assistance, support contacts, and general Deliverex questions.';
+    'Hello! I can help you with tracking deliveries, submitting concerns, account help, and anything about Deliverex services. How can I assist you today?';
 const _trackingIdPrompt =
-    'Please enter your Tracking ID.\n\nExample:\nTRK-ABC123\nor\nDLX-2026-001';
+    'Please enter your Tracking ID.\n\nExamples:\nTRK-ABC123, DLX-2026-001, or XKFP2NQRLA';
 const _trackingIdFaq =
-    'A Tracking ID is a unique reference number assigned to your delivery. Use it to view delivery status, timeline updates, and Proof of Delivery when available.';
+    'A Tracking ID is a unique code for your shipment (examples: TRK-ABC123, DLX-2026-001). You receive it via SMS, email, or from your dispatcher. Use it on the tracking page or here in chat to see live status, timeline, and POD when finished.';
 
 const _faqItems = [
   (
-    'What does Deliverex do?',
-    'Deliverex manages dispatching, tracking, POD capture, and delivery records.',
+    'What is Deliverex?',
+    'Deliverex is a fleet dispatch and delivery management platform for construction and site logistics. It connects dispatchers, drivers, managers, and customers for job orders, GPS tracking, Best-Fit driver assignment, OCR document review, and proof of delivery.',
+  ),
+  (
+    'What services does Deliverex support?',
+    'Material hauling (aggregates, sand, gravel), coordinated delivery with company drivers and vehicles, and site preparation logistics support — all tracked from dispatch through completion with delivery records and POD.',
   ),
   (
     'How do I track my delivery?',
-    'Enter your Tracking ID on the tracking page or use Track My Delivery here.',
+    'Enter your Tracking ID on the home page, Track Delivery page, or paste it in the chat assistant. No account is required. You will see the current status, delivery timeline, ETA, and proof of delivery when the job is completed.',
   ),
   (
-    'How do I link a delivery to my account?',
-    'Deliveries assigned to your company may appear automatically after sign-in. If a delivery is missing, contact support with your Tracking ID.',
+    'Where can I find my Tracking ID?',
+    'Your dispatcher or logistics team provides it when the shipment is created. Check SMS, email, or your delivery confirmation. Examples: TRK-ABC123, DLX-2026-001, or alphanumeric codes such as XKFP2NQRLA.',
   ),
   (
-    'How do I create an account?',
-    'Company accounts are created by a Deliverex administrator. Customer self-signup is available when enabled for your account.',
+    'Who do I contact for delivery issues?',
+    'Email deliverexapp@gmail.com, call (+63) 995-582-0222, or submit the contact form with your Tracking ID and details. For quick status checks, use Track Delivery or the chat assistant first.',
   ),
   (
-    'Where do I request services?',
-    'You can request assistance through the support contact form and service channels.',
-  ),
-  (
-    'What do delivery statuses mean?',
-    'See the delivery status guide for Assigned, pickup, destination, arrival, and completion stages.',
+    'Is my delivery location shared publicly?',
+    'Customers see delivery status, timeline, and approximate location on the tracking page. Precise live GPS is used internally by dispatchers and managers for operations and is not exposed in full detail on the public tracking view.',
   ),
 ];
 
 const _statusGuide = [
-  ('Assigned', 'Driver assigned.', Color(0xFF2563EB)),
+  ('Pending', 'Order received; awaiting dispatch.', Color(0xFF64748B)),
+  ('Dispatched', 'Driver and vehicle assigned.', Color(0xFF2563EB)),
   (
     'En Route to Pickup',
-    'Driver is heading to the pickup point.',
+    'Driver heading to pickup location.',
     Color(0xFF0891B2),
   ),
+  ('Arrived at Pickup', 'Driver at pickup; loading cargo.', Color(0xFF0D9488)),
   (
-    'Arrived at Pickup',
-    'Driver has reached the pickup point.',
-    Color(0xFFD97706),
+    'Enroute to Destination',
+    'Cargo loaded; heading to drop-off.',
+    Color(0xFF0284C7),
   ),
-  (
-    'En Route to Destination',
-    'Delivery is in transit to destination.',
-    Color(0xFF7C3AED),
-  ),
-  ('Arrived', 'Driver has reached the destination.', Color(0xFFEA580C)),
-  ('Completed', 'Delivery has been successfully completed.', Color(0xFF059669)),
+  ('Arrived', 'Driver has reached the destination.', Color(0xFFD97706)),
+  ('Completed', 'Delivery finished successfully.', Color(0xFF059669)),
 ];
 
 String _sectionLabel(SuggestionState state) {
   return switch (state) {
-    SuggestionState.main => 'Choose an option',
+    SuggestionState.main => 'Quick replies',
     SuggestionState.account => 'Account options',
-    SuggestionState.quick => 'Quick actions',
+    SuggestionState.quick => 'Suggested actions',
   };
 }
 
@@ -150,8 +149,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
 
     switch (label) {
-      case 'Track My Delivery':
-      case 'Track Another Delivery':
+      case 'Track Delivery':
+      case 'Track Again':
         setState(() => _awaitingTrackInput = true);
         provider.setSuggestionAfter(
           state: SuggestionState.quick,
@@ -171,6 +170,43 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           assistantMsg: ChatMessage(
             role: 'assistant',
             content: _trackingIdFaq,
+            timestamp: DateTime.now(),
+          ),
+        );
+        break;
+
+      case 'Submit Concern':
+        provider.setSuggestionAfter(
+          state: SuggestionState.quick,
+          userMsg: userMsg,
+          assistantMsg: ChatMessage(
+            role: 'assistant',
+            content:
+                'You can submit a concern anytime. Use the Contact Support form or email us at $_supportEmail with your Tracking ID and details. Concern types include delivery inquiry, complaint, follow-up, general question, or feedback.',
+            timestamp: DateTime.now(),
+          ),
+        );
+        break;
+
+      case 'Status Guide':
+        provider.setSuggestionAfter(
+          state: SuggestionState.quick,
+          userMsg: userMsg,
+          assistantMsg: ChatMessage(
+            role: 'assistant',
+            kind: 'status_guide',
+            timestamp: DateTime.now(),
+          ),
+        );
+        break;
+
+      case 'About Deliverex':
+        provider.setSuggestionAfter(
+          state: SuggestionState.quick,
+          userMsg: userMsg,
+          assistantMsg: ChatMessage(
+            role: 'assistant',
+            kind: 'faq',
             timestamp: DateTime.now(),
           ),
         );
@@ -203,25 +239,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ChatMessage(
             role: 'assistant',
             kind: 'contact',
-            timestamp: DateTime.now(),
-          ),
-        );
-        break;
-
-      case 'General Questions':
-        provider.setSuggestionAfter(
-          state: SuggestionState.quick,
-          userMsg: userMsg,
-          assistantMsg: ChatMessage(
-            role: 'assistant',
-            kind: 'faq',
-            timestamp: DateTime.now(),
-          ),
-        );
-        provider.addMessage(
-          ChatMessage(
-            role: 'assistant',
-            kind: 'status_guide',
             timestamp: DateTime.now(),
           ),
         );
@@ -272,6 +289,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         break;
 
       case 'Return to Menu':
+      case 'Menu':
         provider.setSuggestionState(SuggestionState.main);
         provider.addMessage(userMsg);
         provider.addMessage(
@@ -532,7 +550,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ask me about tracking deliveries, account help, services, or anything about Deliverex.',
+              'Ask me about tracking deliveries, submitting concerns, account help, or anything about Deliverex services.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,

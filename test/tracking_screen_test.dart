@@ -133,4 +133,53 @@ void main() {
     );
     expect(mapButton.onPressed, isNotNull);
   });
+
+  testWidgets('shows clickable proof of delivery when backend returns proof', (
+    tester,
+  ) async {
+    final result = DeliveryTrackingResult.fromJson({
+      'tracking_code': 'TPROOF',
+      'status': 'completed',
+      'job_order': {
+        'pickup_location': 'Pickup',
+        'dropoff_location': 'Drop-off',
+      },
+      'proof_documents': [
+        {
+          'id': 44,
+          'document_type': 'receipt',
+          'uploaded_at': '2026-06-30T01:13:00',
+          'status': 'processing',
+          'file_url': 'https://deliverexapp.com/storage/proofs/44.jpg',
+        },
+      ],
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TrackingScreen(
+          trackingService: _FakeTrackingService(result),
+          showBackButton: false,
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), 'TPROOF');
+    await tester.tap(find.text('Track'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Proof of Delivery Available'), findsOneWidget);
+    expect(find.text('Proof of delivery'), findsOneWidget);
+    expect(find.text('Delivery Receipt Photo'), findsWidgets);
+    expect(find.text('Processing'), findsOneWidget);
+    expect(find.textContaining('June 30, 2026 1:13AM'), findsWidgets);
+
+    final viewButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'View'),
+    );
+    expect(viewButton.onPressed, isNotNull);
+  });
 }
